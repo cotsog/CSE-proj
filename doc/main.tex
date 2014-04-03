@@ -1,0 +1,171 @@
+\documentclass[PROP,PDF]{prop} % use PDF command to enable PDFLaTeX driver
+\usepackage{layout}
+
+\usepackage{geometry}
+\geometry{left=2.8cm,right=2.8cm,top=3.5cm,bottom=4cm,headheight=2.5cm,footskip=3.0cm}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{graphicx}
+\usepackage{pdfpages}
+\usepackage{listings}
+\usepackage{hyperref}
+\lstset{basicstyle=\footnotesize\ttfamily,breaklines=true, breakatwhitespace=true}
+\DeclareGraphicsExtensions{.pdf,.png,.jpg}
+
+\title{Semi-Lagrangian method on Octree}
+
+\articletype{Project Proposal} % Research Article, Review Article, Communication, Erratum
+
+\def\checkbox{\indent\text{\rlap{$\checkmark$}}\square}
+
+\def\uncheckbox{\indent\square}
+
+
+
+\author{Rongting~Zhang\inst{1}\email{rzhang@math.utexas.edu},
+        Yimin~Zhong\inst{1}\email{yzhong@math.utexas.edu}
+       }
+
+\shortauthor{R. Zhang, Y. Zhong}
+
+\institute{\inst{1}
+           Department of Mathematics, University of Texas at Austin, 78712, Austin, U.S.A
+          }
+
+% \abstract{An abstract should accompany every article. It should be a brief summary of significant results of the paper. An abstract should give concise information about the content of the core idea of your paper. It should be informative and not only present the general scope of the paper but also indicate the main results and conclusions.\\
+% The abstract should not exceed 200 words. It should not contain literature citations, allusions to the tables, tables, figures or illustrations. All nonstandard symbols and abbreviations should be defined. In combination with the title and keywords, an abstract is an indicator of the content of the paper.
+% }
+
+% \keywords{Keyword 1 \*\ Keyword 2 \*\ Keyword 3}
+
+% \msc{XXXXX, YYYYY}
+
+\begin{document}
+\maketitle
+%\baselinestretch{2}
+\section{Introduction}
+\section{Problem}
+Solve transport equation or incompressible Euler equation on \emph{Octree} Data structure with cell centered discretization and semi-Lagrangian scheme.
+\subsection{Non adaptive mesh}
+\begin{enumerate}
+\item Regular grid
+\item 2:1 balance octree
+\item Finite volume method
+\end{enumerate}
+
+\subsection{Adaptive mesh}
+\begin{enumerate}
+\item Refine criterion
+\item The level of refinement
+\item Balance octree after refining
+\item Recalculation
+\end{enumerate}
+
+Re-partition after refinement and then do calculation? Otherwise could require a multi-level interpolation. Seems very complex. In Gerris they would do at most 1-level refinement each time-step.\\
+
+Maximum refinement can be taken as parameter in the program. 
+
+\section{Semi-Lagragian}
+Use time level temporal discretization and update each grid point using
+\begin{equation}
+\frac{F(x_m,t_n+\Delta t)-F(x_m-2\alpha_m,t_n-\Delta t)}{2\Delta t}=0
+\end{equation} 
+$F(x_m-2\alpha_m,t_n-\Delta t)$ second order interpolation 
+Find $\alpha_m$ by
+\begin{equation}
+\alpha_m=\Delta t\; U(x_m-\alpha_m,t_n)
+\end{equation}
+where $U(x,t)$ is the velocity field.
+\subsection{Iteration}
+Use fix point iteration as following,
+\begin{eqnarray}
+\alpha_{m}^{k+1} = \Delta t\; U (x_m - \alpha_m^{k},t_n)
+\end{eqnarray}
+The condition for above iteration to converge is
+\begin{eqnarray}
+\Delta t \; \max_x |\nabla_x U| \le 1
+\end{eqnarray}
+\subsection{Computing Concerns}
+\begin{enumerate}
+\item Interpolation
+\item Boundary condition
+\end{enumerate}
+
+\section{Complexity for work-depth model}
+
+\section{Milestone}
+\begin{description}
+\item $\checkbox$ 2-D and 3-D regular grid semi-Lagrangian
+\item $\uncheckbox$ Parallelized semi-Lagrangian on regular grid -- (1 week)
+\item $\uncheckbox$ Semi-Lagrangian on time-invariant Octree -- (1 week)
+\item $\uncheckbox$ Semi-Lagrangian on adaptive Octree -- (2 week)
+\end{description}
+
+\section{Possible issues}
+\begin{description}
+\item $\checkbox$ Octree Package interface
+\item $\uncheckbox$ Overhead of the adaptive octree method
+\end{description}
+
+\section{Bitbucket Repository}
+The project is hosted on \href{https://bitbucket.org/nlmd/cse-proj}{https://bitbucket.org/nlmd/cse-proj}.
+\begin{thebibliography}{9}
+
+\bibitem{annis-etal} Anninis K., Crabi T.J., Sunday T.J., New methods for parallel computing, In: Lyonvenson S. (Ed.), Proceedings of Computer Science Conference (1-�10 Jul. 2007 Haifa Israel), University Press, 2007, 13�-179
+
+\bibitem{p1} Author N., Coauthor M., Title of article, J. Some Math., 2007, 56, 243--256
+
+\bibitem{katish} Katish A., The inconsistency of ZFC, preprint available at
+http://arxiv.org/abs/1234.1234
+
+\bibitem{kittel_etal} Kittel S.J., Maria G., Tuke M., Sepran D.J., Smith J., Tadeuszewicz K., et al., New class of measurable functions, J. Real Anal., 1997, 999, 234-�255
+
+\bibitem{nowak1} Nowak P., New axioms for planar geometry, Eastern J. Math., 1999, 1, 324�-334, (in Polish)
+
+\bibitem{nowak} Nowak P., Even better axioms for planar geometry, Eastern J. Math., (in press, in Polish), DOI: 33.1122/321
+
+\bibitem{euclid00} Pythagoras S., On the squares of sides of certain triangles, J. Ancient Math., 2003, 4, 1--30, (in Greek)
+
+\bibitem{sambrook} Sambrook J., Uncountable abelian groups, In: Sambrook J., Russell D.W. (Eds.), Contributions to Abelian groups, 3rd ed., Nauka, Moscow, 2001
+
+\bibitem{sambrook-russell} Sambrook J., Russell D.W., Abelian groups, 3rd ed., Nauka, Moscow, 2001
+
+\end{thebibliography}
+
+% \begin{table}
+% \def~{\phantom0}
+% \catcode`\@=13
+% \def@{\phantom.}
+% \caption{Some caption text.\label{tab-01}}
+% \medskip
+% \begin{center}
+% \begin{tabular}{l|ccc}\hline
+% \multicolumn1l{\it Some title}\\\hline\hline
+% row 1, column 1         &   row 1, column 2  \\
+% row 2, column 1    &   row 2, column 2   \\
+% row 3, column 1    &   row 3, column 2   \\
+% \hline
+% \multicolumn1l{\it Another title} & Value 1 &   Value 2 &   Value 3 \\
+% \hline\hline
+% row 1                    & ~130 & 30 & 30 \\
+% row 2                    & 1025 & ~1 & 15 \\
+% row 3                   & ~100 & ~1 & 10 \\
+% row 4        & 2925 & ~1 & ~4 \\
+% row 5            & 2950 & ~1 & ~2 \\\hline
+% \end{tabular}
+% \end{center}
+% \end{table}
+
+
+% \begin{figure}
+% \caption{The graph of $y=x\,sin x$ in the interval [-50,50], created by wxMaxima 0.7.4. \label{fig_abc}}
+% %\vskip3cm
+% \includegraphics{xsinx-49.png}
+% \end{figure}
+
+
+
+
+
+
+\end{document}
