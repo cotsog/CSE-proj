@@ -1,0 +1,10 @@
+compiler:
+    - clang
+    - gcc
+
+language: cpp
+
+script: 
+    - make 
+    - ./cse-proj
+    - make clean
