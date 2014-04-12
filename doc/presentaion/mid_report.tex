@@ -1,0 +1,178 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%  This Beamer template was created by Cameron Bracken.
+%%  Anyone can freely use or modify it for any purpose
+%%  without attribution.
+%%
+%%  Last Modified: January 9, 2009
+%%
+
+\documentclass[xcolor=x11names,compress]{beamer}
+
+%% General document %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{decorations.fractals}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+%% Beamer Layout %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\useoutertheme[subsection=false,shadow]{miniframes}
+\useinnertheme{default}
+\usefonttheme{serif}
+\usepackage{palatino}
+
+\setbeamerfont{title like}{shape=\scshape}
+\setbeamerfont{frametitle}{shape=\scshape}
+
+\setbeamercolor*{lower separation line head}{bg=DeepSkyBlue4} 
+\setbeamercolor*{normal text}{fg=black,bg=white} 
+\setbeamercolor*{alerted text}{fg=red} 
+\setbeamercolor*{example text}{fg=black} 
+\setbeamercolor*{structure}{fg=black} 
+ 
+\setbeamercolor*{palette tertiary}{fg=black,bg=black!10} 
+\setbeamercolor*{palette quaternary}{fg=black,bg=black!10} 
+
+\renewcommand{\(}{\begin{columns}}
+\renewcommand{\)}{\end{columns}}
+\newcommand{\<}[1]{\begin{column}{#1}}
+\renewcommand{\>}{\end{column}}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+
+\begin{document}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{\scshape Project}
+\begin{frame}
+\title{Parallel Semi-Lagrangian Scheme}
+\subtitle{For solving advection equations}
+\author{
+	Rongting Zhang, Yimin Zhong\\
+	{\it Dept. Mathematics, University of Texas at Autin}\\
+}
+\date{
+	\begin{tikzpicture}[decoration=Koch curve type 2] 
+		\draw[DeepSkyBlue3] decorate{ decorate{ decorate{ (0,0) -- (4,0) }}}; 
+	\end{tikzpicture}  
+	\\
+	\vspace{1cm}
+	\today
+}
+\titlepage
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{\scshape Problem}
+\subsection{Dynamical system}
+\begin{frame}{Dynamical System in $\mathbb{R}^d$}
+It is widely used in numerical weather prediction and various simulation.
+\begin{eqnarray}
+\frac{\mathrm{d}\mathbf{X}(t)}{\mathrm{d} t} = \mathbf{V}(\mathbf{X}(t),t)
+\end{eqnarray}
+or equivalently finding \emph{characteristic} of advection equation
+\begin{eqnarray}
+\frac{\partial f(\mathbf{x},t)}{\partial t} + \mathbf{V}(\mathbf{x},t)\cdot \nabla_x\; f = 0
+\end{eqnarray}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{\scshape Numerical Method}
+\subsection{Semi-Lagrangian}
+\begin{frame}
+Method
+\begin{itemize}
+\item Semi-Lagrangian
+\begin{eqnarray}
+f(\mathbf{x}_m,t_n+\Delta t)=f(\mathbf{x}_m-2\mathbf{\alpha}_m,t_n-\Delta t)
+\end{eqnarray}
+\item Second order accuracy and iteration
+\begin{eqnarray}
+\mathbf{\alpha}_m=\Delta t\;\mathbf{V}(\mathbf{x_m}-\mathbf{\alpha}_m,t_n)
+\end{eqnarray}
+\end{itemize}
+Pro
+\begin{itemize}
+\item No need to worry about CFL condition.
+\end{itemize}
+Con
+\begin{itemize}
+\item This scheme is at best second order accurate in approximating the backtracking point, if $\mathbf{V}$ is variable.
+%\item if $\mathbf{V}$ is not divergence free, there may be oscillation around shock.
+\end{itemize}
+\end{frame}
+
+\subsection{Semi-Lagrangian ENO/WENO}
+\begin{frame}{Semi-Lagrangian ENO/WENO}
+General Steps
+\begin{itemize}
+\item 1D problem:
+\begin{itemize}
+\item Backtracking in time.
+\item Spacial interpolation using ENO/WENO.
+\end{itemize}
+\item Multi-D problem:\\
+Strang splitting: decompose into severl 1D problems.
+\end{itemize}
+\end{frame}
+
+\section{\scshape Numerical Complexity}
+\subsection{Sequential}
+
+
+\begin{frame}{Sequential Method}
+\begin{itemize}
+\item If $\mathbf{V}$ is constant vector, then it is fast to know the solution by simply interpolation and implement high order accuracy scheme by ENO/WENO.
+\item To achieve $2k+1$ order accuracy in $\mathbf{R}^d$, with number of time steps as $N$ and mesh size $M$, by using WENO. Time complexity is $O(kNM^d)$. (Qiu \& Shu 2011)
+=======
+\item If $\mathbf{V}$ is constant vector, then it is fast to know the solution by simply interpolation, and easy to implement arbitrary accuracy scheme by ENO/WENO.
+\item To achieve $2k+1$ order accuracy in $\mathbf{R}^d$, with time step as $N$ and mesh size $M$, by using WENO. Time complexity is $O(kNM^d)$.
+\end{itemize}
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Sequential}
+\begin{frame}{Sequential Method}
+\begin{itemize}
+\item If $\mathbf{V}$ is variable and divergence free. Tracking back is no longer an easy job within high accuracy. We shall use some high order time integrator to implement this. 
+\item For example, Semi-Lagrangian method with Runge-Kutta high order solver(time integrator) for back tracking. The time complexity is $O(M^d N\times T(SL))$ 
+with second order time splitting and WENO. (Qiu \& Shu 2011)
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Parallel}
+\begin{frame}{Parallel Method}
+Most of running time are consumed in Semi-Lagrangian back tracking and interpolation. And this can be parallelized perfectly, since back tracking with different end points $\mathbf{x}_m$ are independent process. Work-depth model time complexity here is $O(T(SL)\times N)$.
+\end{frame}
+
+\section{Milestones}
+\begin{frame}{Milestiones}
+\begin{itemize}
+\item 1D Sequential Semi-Lagrangian ENO/WENO implementation. (April 12)
+\item 3D Semi-Lagrangian ENO/WENO implementation. (April 18 )
+\item 3D shared memory implementation. (April 25)
+\item 3D distributed memory implementation. (May 9)
+\end{itemize}
+\end{frame}
+
+\end{document}

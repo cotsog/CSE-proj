@@ -44,26 +44,30 @@
 \maketitle
 %\baselinestretch{2}
 \section{Introduction}
+The octree data structure\cite{OM1}\cite{OM2} with adaptive mesh refinement proves to be a flexible and allows accurate and efficient tracking of flow features. On the other hand, semi-Lagrangian method\cite{JS}\cite{SL} enables the choice of a larger time steps in the simulation of fluids which would be crucial for an adaptive mesh approach. Popinet\cite{GE} and Gibou\cite{ST} have previously worked on solving Euler equation on octree data structure. In this project, we try to implement a parallelized semi-Lagrangian method on octree data structure for a simple transport equation and Euler equation if time permits. 
 \section{Problem}
 Solve transport equation or incompressible Euler equation on \emph{Octree} Data structure with cell centered discretization and semi-Lagrangian scheme.
 \subsection{Non adaptive mesh}
 \begin{enumerate}
-\item Regular grid
-\item 2:1 balance octree
-\item Finite volume method
+\item Regular Cartesian grid\\
+A three time level semi-Lagrangian method will be adopted. See section ...
+\item Time-invariant octree\\
+We will adopt the implementation of 2:1 balance octree.  
 \end{enumerate}
 
 \subsection{Adaptive mesh}
 \begin{enumerate}
-\item Refine criterion
-\item The level of refinement
-\item Balance octree after refining
-\item Recalculation
+\item Refine criterion\\
+An attractive option is to use Richardson extrapolation. Simple criterion based on the norm of the local vorticity vector can also be considered, e.g. $\frac{h||\nabla \times U||}{\max||U||}>\tau$. \cite{GE}
+\item Balance octree after refining\\
+Refinement of a single cell may cause dismatch of level with neighboring cells. Thus a rebalancing of the octree is required. \cite{OM1}\cite{OM2} 
+\item The level of refinement\\
+After each refinement and re-balancing we will need to do one more cycle of calculation. This will be expensive if a few cells need multilevel refinement.\\ 
+Possible solution:\\
+1. In Gerris they would do at most 1-level refinement each time-step.\\
+2. Maximum refinement can be taken as parameter in the program. 
 \end{enumerate}
-
-Re-partition after refinement and then do calculation? Otherwise could require a multi-level interpolation. Seems very complex. In Gerris they would do at most 1-level refinement each time-step.\\
-
-Maximum refinement can be taken as parameter in the program. 
+ 
 
 \section{Semi-Lagragian}
 Use time level temporal discretization and update each grid point using
@@ -87,11 +91,33 @@ The condition for above iteration to converge is
 \end{eqnarray}
 \subsection{Computing Concerns}
 \begin{enumerate}
-\item Interpolation
-\item Boundary condition
+\item Interpolation\\
+When neighboring cells are of different level, we will need to do interpolation to calculate gradient flux on the interface of cells in Euler equation. Here we plan to adopt the strategy introduced in Gerris.
+\item Boundary condition\\
+For Euler equation, we shall use no-flow condition.
 \end{enumerate}
 
 \section{Complexity for work-depth model}
+
+\subsection{Semi-Lagrangian}
+Suppose the tolerance of each iteration is $tol$, then steps for convergence is $\Omega(|\log(tol)|)$. Since each iteration is independent, the time complexity is $\Omega(1/\Delta t |\log(tol)|)$, work complexity is $\Omega(N^d/\Delta t |\log(tol)|)$. 
+\subsection{Octree}
+The complexity here depends on specific implementations. \cite{OM1},\cite{OM2}.
+
+And the octree related operations required:
+\begin{enumerate}
+\item Time invariant:
+\begin{enumerate}
+\item Generation of octree.
+\item Fetch data from neighboring cells.
+\end{enumerate}
+\item Extra operations for adaptive:
+\begin{enumerate}
+\item (Check refinement/coarsening criterion)
+\item Refinement/coarsening of octree
+\end{enumerate}
+\end{enumerate}
+
 
 \section{Milestone}
 \begin{description}
@@ -109,26 +135,24 @@ The condition for above iteration to converge is
 
 \section{Bitbucket Repository}
 The project is hosted on \href{https://bitbucket.org/nlmd/cse-proj}{https://bitbucket.org/nlmd/cse-proj}.
-\begin{thebibliography}{9}
+\begin{thebibliography}{6}
 
-\bibitem{annis-etal} Anninis K., Crabi T.J., Sunday T.J., New methods for parallel computing, In: Lyonvenson S. (Ed.), Proceedings of Computer Science Conference (1-�10 Jul. 2007 Haifa Israel), University Press, 2007, 13�-179
+\bibitem{GE} St\'{e}phane Popinet, Gerris: A Tree-Based Adaptive Solver For The Incompressible Euler Equations In Complex Geometries 2003, 190, 572--600
 
-\bibitem{p1} Author N., Coauthor M., Title of article, J. Some Math., 2007, 56, 243--256
+\bibitem{OM1} Carsten Burstedde, Lucsa C. Wilcox, Omar Ghattas,
+ p4est: Scalable Algorithms for Parallel Adaptive Mesh Refinement on Forests of Octrees., SIAM J. SCI.COMPUT, 2011 , 33 , 1103--1133
 
-\bibitem{katish} Katish A., The inconsistency of ZFC, preprint available at
-http://arxiv.org/abs/1234.1234
+\bibitem{OM2} Tobin Isaac, Carsten Burstedde, and Omar Ghattas,
+Low-Cost Parallel Algorithms for 2:1 Octree Balance.
+Published in Proceedings of the 26th IEEE International Parallel \& Distributed Processing Symposium, 2012. 
 
-\bibitem{kittel_etal} Kittel S.J., Maria G., Tuke M., Sepran D.J., Smith J., Tadeuszewicz K., et al., New class of measurable functions, J. Real Anal., 1997, 999, 234-�255
+\bibitem{JS} Stable Fluids, Jos Stam, SIGGRAPH 99 Conference Proceedings, Annual Conference Series, August 1999, 121-128
 
-\bibitem{nowak1} Nowak P., New axioms for planar geometry, Eastern J. Math., 1999, 1, 324�-334, (in Polish)
+\bibitem{SL} Semi-Lagrangian Integration Schemes for Atmospheric Models -- A Review, Andrew Staniforth and Jean C\^{o}t\'{e}, 1991, 19, 2206 --2223
 
-\bibitem{nowak} Nowak P., Even better axioms for planar geometry, Eastern J. Math., (in press, in Polish), DOI: 33.1122/321
+\bibitem{ST}Losasso, Frank, Fr\'{e}d\'{e}ric Gibou, and Ron Fedkiw. "Simulating water and smoke with an octree data structure." ACM Transactions on Graphics (TOG). Vol. 23. No. 3. ACM, 2004.
 
-\bibitem{euclid00} Pythagoras S., On the squares of sides of certain triangles, J. Ancient Math., 2003, 4, 1--30, (in Greek)
 
-\bibitem{sambrook} Sambrook J., Uncountable abelian groups, In: Sambrook J., Russell D.W. (Eds.), Contributions to Abelian groups, 3rd ed., Nauka, Moscow, 2001
-
-\bibitem{sambrook-russell} Sambrook J., Russell D.W., Abelian groups, 3rd ed., Nauka, Moscow, 2001
 
 \end{thebibliography}
 
