@@ -1,7 +1,7 @@
 /*
  * WENO.cpp
  *
- *  Created on: Apr 10, 2014
+ *  Created on: Apr 15, 2014
  *      Author: lurker
  */
 
@@ -16,315 +16,276 @@ WENO::~WENO() {
 	// TODO Auto-generated destructor stub
 }
 
-void WENO::PWENO_1D(int flag, int ORDER, VECTOR init_state, Grid_1D grid, int time_step, double delta_t){
-	// vector is row-majored.
-	std::size_t length = init_state.rows();
 
-	VECTOR Solution = VECTOR::Zero(length + ORDER);
-	VECTOR AUX      = VECTOR::Zero(length + ORDER);
+void WENO::CWENO1D(Vector<double> init_state, Grid_1D grid, int Order, int time_step, double delta_t, Const Vel_X){
+	// periodical boundary, the end point on RHS is useless
+	Vector<double> Solution(grid.size_x);
+	Vector<double> Aux(grid.size_x);
 
-	if (flag == 0){
-		// constant velocity
-#ifndef VEL_1D
-#define VEL_1D 1.0
-#endif
-		int LEFT,RIGHT, ROTATE;
-		double xshift = VEL_1D*delta_t/(grid.final_x- grid.start_x)*grid.size_x;
-		// DIRECTION OF PROPAGATION
-		EXTEND(xshift, LEFT, RIGHT, ORDER, ROTATE);
-		MATRIX C(ORDER,ORDER);
-		VECTOR XI(ORDER);
-		VECTOR SUB_1(ORDER);
-		VECTOR SUB_2(ORDER);
+	double xshift = Vel_X * delta_t / grid.delta_x;
+	// backward length
 
-		MAKEXI(xshift, XI, ORDER);
+	int rotate = floor(xshift + 0.5);
+	double xi = xshift - rotate;
 
-		// Assembly C according to x_shift
-		// Now finished with x_shift in (-.5,.5)
-		ASSEMBLE(C,ORDER,xshift);
-		// set solution domain, the other points are zero
-		Solution.segment(LEFT,length) = init_state;
-		// updates time_step times
-		for (int i = 0; i < time_step; i++){
-			// periodical boundary condition, difference in index as (length - 1)
-			// complete Solution as full solution
-			Solution.segment(0,LEFT) = Solution.segment(length - 1,LEFT);
-			Solution.segment(length + LEFT,RIGHT) = Solution.segment(LEFT + 1,RIGHT);
-			// end of boundary condition
-			// updating according to time propagating
-			for (std::size_t j = LEFT; j < length+LEFT; j ++){
-				// extract information from full Solution
-				SUB_1= Solution.segment(j-LEFT + 1,ORDER);
-				SUB_2= Solution.segment(j-LEFT,ORDER);
-				// x_shift > 0, and x_shift < 0
-				// up-wind-similar scheme
-				// update AUX in solution domain
-				AUX(j) = Solution(j) - (xshift)*(SUB_1-SUB_2).transpose()*C*XI;
+	Vector<double> Xi(Order);
+
+	MakeXi(xi, Xi,Order);
+
+	Matrix<double> CL(Order,Order);
+	Matrix<double> CR(Order,Order);
+	Assign(CL,CR,Order);
+
+	Solution = init_state;
+
+	int i,j;
+
+	if (xi > 0){
+		for (i = 0 ; i < time_step; i++){
+#pragma omp parallel for private(j) schedule(static)
+			for (j = 0; j < grid.size_x; j++){
+				Aux(j+rotate) = Solution(j) - xi*((Solution(j-(Order-1)/2, Order) - Solution(j-(Order+1)/2, Order))*(CL*Xi));
 			}
-			Solution.segment(LEFT,length) = AUX.segment(LEFT,length);
-			// During this time step, if ROTATE is non-zero, then a rotation of solution is needed.
-			// Direction of rotation
-			if (ROTATE > 0){
-				// MOVE TO RIGHT SIDE
-				AUX.segment(LEFT+ROTATE, length - ROTATE) = Solution.segment(LEFT, length - ROTATE);
-				// periodical
-				AUX.segment(LEFT,ROTATE) = Solution.segment(LEFT + length - ROTATE - 1, ROTATE);
-				Solution.segment(LEFT,length) = AUX.segment(LEFT,length);
-			}
-			else if (ROTATE < 0){
-				// MOVE TO LEFT SIDE, ROTATE IS NEGATIVE
-				AUX.segment(LEFT,length + ROTATE) = Solution.segment(LEFT -  ROTATE, length + ROTATE);
-				AUX.segment(length + LEFT + ROTATE, -ROTATE) = Solution.segment(LEFT+1, -ROTATE);
-				Solution.segment(LEFT, length) = AUX.segment(LEFT,length);
-			}
+//#pragma omp barrier
+			Solution = Aux;
 		}
-		// write into file or not
-		// Here is test output. L2 norm
-		std::cout << sqrt((Solution.segment(LEFT,length) - init_state).squaredNorm()/init_state.rows());
-	}
-	else if (flag == 1){
-		//variable velocity
-		std::cout << "not implemented.\n" << std::endl;
-	}
-}
-
-void WENO::PWENO_2D(int flag, int ORDER, MATRIX init_state, Grid_2D grid, int time_step, double delta_t){
-	// use two component splitting method on each time step
-	// consider x-direction first then y_direction. First order splitting would be enough.
-	std::size_t len_row = init_state.rows();
-	std::size_t len_col = init_state.cols();
-	MATRIX Solution = MATRIX::Zero(len_row + ORDER, len_col + ORDER);
-	MATRIX AUX      = MATRIX::Zero(len_row + ORDER, len_col + ORDER);
-	if (flag == 0){
-#ifndef VEL_2D_X
-#define VEL_2D_X 1.0
-#endif
-#ifndef VEL_2D_Y
-#define VEL_2D_Y 1.0
-#endif
-		int LEFT_X,RIGHT_X,LEFT_Y,RIGHT_Y, ROTATE_X, ROTATE_Y;
-		double xshift = VEL_2D_X*delta_t/(grid.final_x- grid.start_x)*grid.size_x;
-		double yshift = VEL_2D_Y*delta_t/(grid.final_y - grid.start_y)*grid.size_y;
-		// SOLUTION DOMAIN TO VIRTUAL SOLUTION DOMAIN
-		EXTEND(xshift, LEFT_X, RIGHT_X,ORDER, ROTATE_X);
-		EXTEND(yshift, LEFT_Y, RIGHT_Y, ORDER, ROTATE_Y);
-
-		// EXTENDED DOMAIN
-		MATRIX C_X(ORDER,ORDER);
-		MATRIX C_Y(ORDER,ORDER);
-		VECTOR XI_X(ORDER);
-		VECTOR XI_Y(ORDER);
-		VECTOR SUB_1(ORDER);
-		VECTOR SUB_2(ORDER);
-
-		MAKEXI(xshift, XI_X, ORDER);
-		MAKEXI(yshift, XI_Y, ORDER);
-
-		ASSEMBLE(C_X,ORDER,xshift);
-		ASSEMBLE(C_Y,ORDER,yshift);
-		// Initialize solution
-		Solution.block(LEFT_X,LEFT_Y,len_row, len_col) = init_state;
-		// update Solution
-		for (int i = 0; i < time_step; i++){
-			// BLOCK-WISE EXTENSION, ROW_BASE
-			Solution.block(0, LEFT_Y, LEFT_X, len_col) = Solution.block(len_row - 1, LEFT_Y, LEFT_X, len_col);
-			Solution.block(len_row + LEFT_X, LEFT_Y, RIGHT_X, len_col) = Solution.block(LEFT_X + 1, LEFT_Y, RIGHT_X, len_col);
-//			Solution.block(LEFT_X, 0, len_row, LEFT_Y) = Solution.block(LEFT_X, len_col - 1, len_row, LEFT_Y);
-//			Solution.block(LEFT_X, len_col + LEFT_Y, len_row, RIGHT_Y) = Solution.block(LEFT_X, LEFT_Y + 1, len_row, RIGHT_Y);
-			// TWO STEP SPLITTING METHOD.
-			// X-DIRECTION
-			// TODO: USE block－wise operation
-			for (std::size_t j_x = LEFT_X; j_x < len_row+LEFT_X; j_x++){
-				for (std::size_t j_y = LEFT_Y; j_y < len_col + LEFT_Y; j_y++){
-					SUB_1= Solution.block(j_x-LEFT_X + 1,j_y, ORDER,1);
-					SUB_2= Solution.block(j_x-LEFT_X    ,j_y, ORDER,1);
-					AUX(j_x,j_y) = Solution(j_x,j_y) - (xshift)*(SUB_1-SUB_2).transpose()*C_X*XI_X;
-				}
-			}
-			Solution.block(LEFT_X,LEFT_Y,len_row, len_col) = AUX.block(LEFT_X,LEFT_Y,len_row, len_col);
-			// X-DIRECTION COMPLETED
-
-			// EXTEND SOLUTION BLOCK-WISE, COL_BASE
-//			Solution.block(0, LEFT_Y, LEFT_X, len_col) = Solution.block(len_row - 1, LEFT_Y, LEFT_X, len_col);
-//			Solution.block(len_row + LEFT_X, LEFT_Y, RIGHT_X, len_col) = Solution.block(LEFT_X + 1, LEFT_Y, RIGHT_X, len_col);
-			Solution.block(LEFT_X, 0, len_row, LEFT_Y) = Solution.block(LEFT_X, len_col - 1, len_row, LEFT_Y);
-			Solution.block(LEFT_X, len_col + LEFT_Y, len_row, RIGHT_Y) = Solution.block(LEFT_X, LEFT_Y + 1, len_row, RIGHT_Y);
-			// Y-DIRECTION
-			// TODO: USE block-wise operation
-			for (std::size_t j_x = LEFT_X; j_x < len_row+LEFT_X; j_x++){
-				for (std::size_t j_y = LEFT_Y; j_y < len_col + LEFT_Y; j_y++){
-					SUB_1= Solution.block(j_x, j_y-LEFT_Y + 1,1, ORDER).transpose();
-					SUB_2= Solution.block(j_x, j_y-LEFT_Y,1, ORDER).transpose();
-					AUX(j_x,j_y) = Solution(j_x,j_y) - (yshift)*(SUB_1-SUB_2).transpose()*C_Y*XI_Y;
-				}
-			}
-			// update step. should be accelerated.
-			Solution.block(LEFT_X,LEFT_Y,len_row, len_col) = AUX.block(LEFT_X,LEFT_Y,len_row, len_col);
-
-			if (ROTATE_X > 0){
-				// MOVE TO RIGHT SIDE
-				AUX.block(LEFT_X+ROTATE_X,LEFT_Y, len_row - ROTATE_X, len_col) = Solution.block(LEFT_X, LEFT_Y, len_row - ROTATE_X, len_col);
-				// periodical
-				AUX.block(LEFT_X,LEFT_Y,ROTATE_X,len_col) = Solution.block(LEFT_X + len_row - ROTATE_X - 1, LEFT_Y,ROTATE_X, len_col);
-				Solution.block(LEFT_X,LEFT_Y,len_row, len_col) = AUX.block(LEFT_X,LEFT_Y,len_row, len_col);
-			}
-			else if (ROTATE_X < 0){
-				// MOVE TO LEFT SIDE, ROTATE IS NEGATIVE
-				AUX.block(LEFT_X,LEFT_Y,len_row + ROTATE_X, len_col) = Solution.block(LEFT_X -  ROTATE_X, LEFT_Y, len_row + ROTATE_X, len_col);
-				AUX.block(len_row + LEFT_X + ROTATE_X,LEFT_Y, -ROTATE_X, len_col) = Solution.block(LEFT_X+1,LEFT_Y, -ROTATE_X, len_col);
-				Solution.block(LEFT_X,LEFT_Y,len_row, len_col) = AUX.block(LEFT_X,LEFT_Y,len_row, len_col);
-			}
-
-			if (ROTATE_Y > 0){
-				// MOVE TO RIGHT SIDE
-				AUX.block(LEFT_X, LEFT_Y+ROTATE_Y,len_row, len_col - ROTATE_Y) = Solution.block(LEFT_X, LEFT_Y, len_row, len_col - ROTATE_Y);
-				// periodical
-				AUX.block(LEFT_X, LEFT_Y,len_row, ROTATE_Y) = Solution.block(LEFT_X, LEFT_Y + len_col - ROTATE_Y - 1, len_row, ROTATE_Y);
-				Solution.block(LEFT_X,LEFT_Y,len_row, len_col) = AUX.block(LEFT_X,LEFT_Y,len_row, len_col);
-			}
-			else if (ROTATE_Y < 0){
-				// MOVE TO LEFT SIDE, ROTATE IS NEGATIVE
-				AUX.block(LEFT_X, LEFT_Y,len_row, len_col + ROTATE_Y) = Solution.block(LEFT_X, LEFT_Y -  ROTATE_Y, len_row, len_col + ROTATE_Y);
-				AUX.block(LEFT_X, len_col + LEFT_Y + ROTATE_Y, len_row,  -ROTATE_Y) = Solution.block(LEFT_X, LEFT_Y+1,len_row, -ROTATE_Y);
-				Solution.block(LEFT_X,LEFT_Y,len_row, len_col) = AUX.block(LEFT_X,LEFT_Y,len_row, len_col);
-			}
-		}
-		std::cout << sqrt((Solution.block(LEFT_X,LEFT_Y,len_row, len_col)  - init_state).squaredNorm()/init_state.rows()/init_state.cols());
-	}
-	else if (flag == 1){
-		std::cout << "not implemented yet.\n" << std::endl;
-	}
-}
-//void WENO::PWENO_3D(int flag, int ORDER, TENSOR init_state, Grid_3D grid, int time_step, double delta_t){
-//
-//}
-//void WENO::NPWENO_1D(int flag, int ORDER, VECTOR init_state, Grid_1D grid, int time_step, double delta_t){
-//	// PML(ABC) needed.
-//}
-//void WENO::NPWENO_2D(int flag,int ORDER,  MATRIX init_state, Grid_2D grid, int time_step, double delta_t){
-//
-//}
-//void WENO::NPWENO_3D(int flag, int ORDER,  TENSOR init_state, Grid_3D grid, int time_step, double delta_t){
-//
-//}
-
-void WENO::ASSEMBLE(MATRIX &C, int ORDER, double xshift){
-	if (ORDER == 3){
-		if (ph(xshift)){
-			//CL
-			C << -1./6,     0, 1./6,
-				   5./6, 1./2, -1./3,
-				   1./3, -1./2, 1./6;
-		}
-		else if(nh(xshift)){
-			//CR
-			C << 1./3, -1./2, 1./6,
-				  5./6, 1./2, -1./3,
-				 -1./6,     0, 1./6;
-		}
-
-	}
-	if (ORDER == 5){
-		if (ph(xshift)){
-		//CL
-		C << 1./30,     0., -1./24,      0.,  1./120,
-			-13./60, -1./24,   1./4,   1./24,  -1./30,
-			47./60,   5./8,  -1./3,   -1./8,   1./20,
-			9./20,  -5./8,  1./12,    1./8,  -1./30,
-			-1./20,  1./24,  1./24,  -1./24,  1./120;
-		}
-		else if (nh(xshift)){
-			C << -1./20,   1./24,  1./24,  -1./24,  1./120,
-				 9./20,  -5./8,  1./12,    1./8,  -1./30,
-				47./60,   5./8,  -1./3,   -1./8,   1./20,
-			   -13./60, -1./24,   1./4,   1./24,  -1./30,
-				 1./30,     0., -1./24,      0.,  1./120;
-		}
-	}
-	if (ORDER == 7){
-		if (ph(xshift)){
-		//CL
-		C << -1./140, 0., 7./720, 0, -1./360, 0., 1./5040,
-				5./84, 1./180, -19./240, -1./144, 1./48, 1./720, -1./840,
-				-101./420, -5./72, 7./24, 11./144, -13./240, -1./144, 1./336,
-				319./420, 49./72, -23./72, -7./36, 23./360, 1./72, -1./252,
-				107./210, -49./72, 1./48, 7./36, -1./30, -1./72, 1./336,
-				-19./210, 5./72, 7./80, -11./144, 1./240, 1./144, -1./840,
-				1./105, -1./180, -1./90, 1./144, 1./720, -1./720, 1./5040;
-		}
-		else if (nh(xshift)){
-			C << 1./105, -1./180, -1./90, 1./144, 1./720, -1./720, 1./5040,
-					-19./210, 5./72, 7./80, -11./144, 1./240, 1./144, -1./840,
-					107./210, -49./72, 1./48, 7./36, -1./30, -1./72, 1./336,
-					319./420, 49./72, -23./72, -7./36, 23./360, 1./72, -1./252,
-					-101./420, -5./72, 7./24, 11./144, -13./240, -1./144, 1./336,
-					5./84, 1./180, -19./240, -1./144, 1./48, 1./720, -1./840,
-					-1./140, 0., 7./720, 0, -1./360, 0., 1./5040;
-		}
-	}
-
-	if (ORDER == 9){
-		if (ph(xshift)){
-			//CL
-			C <<        1./630,         0.,  -41./18144,        0., 13./17280,        0., -1./12096,        0.,  1./362880,
-					 -41./2520,   -1./1120, 2081./90720,   7./5760,   -1./135,  -1./2880, 23./30240,  1./40320,  -1./45360,
-					 199./2520,   17./1440,  -281./2592, -89./5760, 139./4320,  11./2880, -17./6048,  -1./5760,   1./12960,
-					-641./2520, -127./1440, 4097./12960, 587./5760,  -29./432, -41./2880,167./30240,   1./1920,   -1./6480,
-					1879./2520,   205./288,  -797./2592,  -91./384, 587./8640,    5./192, -19./3024,  -1./1152,    1./5184,
-					  275./504,  -205./288,   -59./2592,   91./384, -29./1080,   -5./192,  25./6048,   1./1152,   -1./6480,
-					  -61./504,  127./1440, 1637./12960,-587./5760, -17./4320,  41./2880,-43./30240,  -1./1920,   1./12960,
-					   11./504,  -17./1440, -491./18144,  89./5760,  11./2160, -11./2880,   1./6048,   1./5760,  -1./45360,
-					   -1./504,    1./1120,   59./22680,  -7./5760,-11./17280,   1./2880,  1./60480, -1./40320,  1./362880;
-		}
-		else if (nh(xshift)){
-			C << -1./504,    1./1120,   59./22680,  -7./5760,-11./17280,   1./2880,  1./60480, -1./40320,  1./362880,
-					 11./504,  -17./1440, -491./18144,  89./5760,  11./2160, -11./2880,   1./6048,   1./5760,  -1./45360,
-					 -61./504,  127./1440, 1637./12960,-587./5760, -17./4320,  41./2880,-43./30240,  -1./1920,   1./12960,
-					 275./504,  -205./288,   -59./2592,   91./384, -29./1080,   -5./192,  25./6048,   1./1152,   -1./6480,
-					 1879./2520,   205./288,  -797./2592,  -91./384, 587./8640,    5./192, -19./3024,  -1./1152,    1./5184,
-					 -641./2520, -127./1440, 4097./12960, 587./5760,  -29./432, -41./2880,167./30240,   1./1920,   -1./6480,
-					 199./2520,   17./1440,  -281./2592, -89./5760, 139./4320,  11./2880, -17./6048,  -1./5760,   1./12960,
-					 -41./2520,   -1./1120, 2081./90720,   7./5760,   -1./135,  -1./2880, 23./30240,  1./40320,  -1./45360,
-					    1./630,         0.,  -41./18144,        0., 13./17280,        0., -1./12096,        0.,  1./362880;
-		}
-	}
-}
-
-bool WENO::ph(double xshift){
-	if ((xshift >= 0) && (xshift <= 0.5))
-		return true;
-	else
-		return false;
-}
-
-bool WENO::nh(double xshift){
-	if ((xshift <= 0) && (xshift >= -.5))
-		return true;
-	else
-		return false;
-}
-
-void WENO::EXTEND(double& _shift, int& _LEFT, int& _RIGHT, int _ORDER, int& _ROTATE){
-	// _ROTATE will give the solution a rotation
-	_ROTATE = floor(_shift + 0.5);
-	_shift = _shift - _ROTATE;
-	if (ph(_shift)){
-				_LEFT = (_ORDER + 1)/2;
-				_RIGHT = (_ORDER - 1)/2;
-			}
-	else  if(nh(_shift)){
-		_LEFT = (_ORDER - 1)/2;
-		_RIGHT = (_ORDER + 1)/2;
 	}
 	else{
-		std::cout << "exception threw out." << std::endl;
-		exit(1);
+		for (i =0; i < time_step; i++){
+#pragma omp parallel for private(j) schedule(static)
+			for (j = 0 ; j < grid.size_x; j++){
+				Aux(j+rotate) = Solution(j)  - xi*((Solution(j-(Order-1)/2 + 1,Order) - Solution(j-(Order-1)/2,Order))*(CR*Xi));
+			}
+//#pragma omp barrier
+			Solution = Aux;
+		}
+
+	}
+
+	cout << sqrt((Solution - init_state).sqnorm()/grid.size_x) <<"    ";
+
+}
+
+void WENO::CWENO2D(Matrix<double> init_state, Grid_2D grid, int Order, int time_step, double delta_t, double Vel_X, double Vel_Y){
+	Matrix<double> Solution(grid.size_x,grid.size_y);
+	Matrix<double> Aux(grid.size_x,grid.size_y);
+	double xshift = Vel_X * delta_t / grid.delta_x;
+	double yshift = Vel_Y * delta_t / grid.delta_y;
+	// backward length
+
+	int rotate_x = floor(xshift + 0.5);
+	int rotate_y = floor(yshift + 0.5);
+	double xi_x = xshift - rotate_x;
+	double xi_y = yshift - rotate_y;
+
+//	Vector<double> Sub_1(Order);
+//	Vector<double> Sub_2(Order);
+	Vector<double> Xi_x(Order);
+	Vector<double> Xi_y(Order);
+
+	MakeXi(xi_x, Xi_x, Order);
+	MakeXi(xi_y, Xi_y, Order);
+
+	Matrix<double> CL(Order,Order);
+	Matrix<double> CR(Order,Order);
+	Assign(CL,CR,Order);
+
+	Solution = init_state;
+
+	int i,j,k;
+	for (i = 0 ; i < time_step; i++){
+		// rows
+		for (j = 0; j < grid.size_x; j++){
+#pragma omp parallel for private(k) schedule(static)
+			for (k = 0; k < grid.size_y; k++){
+				if (xi_x > 0){
+					Aux(j+rotate_x, k) = Solution(j,k) - xi_x*((Solution.slicec(k)(j-(Order-1)/2, Order) -
+							Solution.slicec(k)(j-(Order+1)/2, Order))*(CL*Xi_x));
+				}
+				else{
+					Aux(j+rotate_x, k) = Solution(j,k)  - xi_x*((Solution.slicec(k)(j-(Order-1)/2 + 1,Order) -
+							Solution.slicec(k)(j-(Order-1)/2,Order))*(CR*Xi_x));
+				}
+			}
+		}
+//#pragma omp barrier
+		Solution = Aux;
+		// columns
+		for (j = 0; j < grid.size_x; j++){
+#pragma omp parallel for private(k) schedule(static)
+			for (k = 0; k < grid.size_y; k++){
+				if (xi_y > 0){
+					Aux(j, k+rotate_y) = Solution(j,k) - xi_y*((Solution.slicer(j)(k-(Order-1)/2,Order) -
+							Solution.slicer(j)(k-(Order+1)/2, Order))*(CL*Xi_y));
+				}
+				else{
+					Aux(j, k+rotate_y) = Solution(j,k) - xi_y*((Solution.slicer(j)(k-(Order-1)/2 + 1,Order) -
+							Solution.slicer(j)(k-(Order-1)/2,   Order))*(CR*Xi_y));
+				}
+			}
+		}
+//#pragma omp barrier
+		Solution = Aux;
+
+	}
+	cout << sqrt((Solution - init_state).sqnorm()/grid.size_x/grid.size_y) << "    ";
+}
+
+void WENO::CWENO3D(Tensor<double> init_state, Grid_3D grid, int Order, int time_step, double delta_t, double Vel_X, double Vel_Y, double Vel_Z){
+	Tensor<double> Solution(grid.size_x,grid.size_y, grid.size_z);
+	Tensor<double> Aux(grid.size_x,grid.size_y, grid.size_z);
+	double xshift = Vel_X * delta_t / grid.delta_x;
+	double yshift = Vel_Y * delta_t / grid.delta_y;
+	double zshift = Vel_Z * delta_t / grid.delta_z;
+
+	int rotate_x = floor(xshift + 0.5);
+	int rotate_y = floor(yshift + 0.5);
+	int rotate_z = floor(zshift + 0.5);
+	double xi_x = xshift - rotate_x;
+	double xi_y = yshift - rotate_y;
+	double xi_z = zshift - rotate_z;
+
+	Vector<double> Xi_x(Order);
+	Vector<double> Xi_y(Order);
+	Vector<double> Xi_z(Order);
+
+	MakeXi(xi_x, Xi_x, Order);
+	MakeXi(xi_y, Xi_y, Order);
+	MakeXi(xi_z, Xi_z, Order);
+
+	Matrix<double> CL(Order,Order);
+	Matrix<double> CR(Order,Order);
+	Assign(CL,CR,Order);
+
+	Solution = init_state;
+
+	int i,j,k,l;
+	for (i = 0 ; i < time_step; i++){
+		// rows
+		for (j = 0; j < grid.size_x; j++){
+			for (k = 0; k < grid.size_y; k++){
+#pragma omp parallel for private(l) schedule(static)
+				for (l = 0; l < grid.size_z; l++){
+					if (xi_x > 0){
+						Aux(j + rotate_x, k, l) = Solution(j,k,l) - xi_x*((Solution.slicech(k,l)(j-(Order-1)/2, Order) -
+								Solution.slicech(k,l)(j-(Order+1)/2, Order))*(CL*Xi_x));
+					}
+					else{
+						Aux(j+rotate_x, k,l) = Solution(j,k,l)  - xi_x*((Solution.slicech(k,l)(j-(Order-1)/2 + 1,Order) -
+								Solution.slicech(k,l)(j-(Order-1)/2,Order))*(CR*Xi_x));
+					}
+				}
+			}
+		}
+//#pragma omp barrier
+		Solution = Aux;
+		// columns
+		for (j = 0; j < grid.size_x; j++){
+			for (k = 0; k < grid.size_y; k++){
+#pragma omp parallel for private(l) schedule(static)
+				for (l = 0; l < grid.size_z; l++){
+					if (xi_y > 0){
+						Aux(j, k+rotate_y,l) = Solution(j,k,l) - xi_y*((Solution.slicerh(j,l)(k-(Order-1)/2,Order) -
+								Solution.slicerh(j,l)(k-(Order+1)/2, Order))*(CL*Xi_y));
+					}
+					else{
+						Aux(j, k+rotate_y,l) = Solution(j,k,l) - xi_y*((Solution.slicerh(j,l)(k-(Order-1)/2 + 1,Order) -
+								Solution.slicerh(j,l)(k-(Order-1)/2,   Order))*(CR*Xi_y));
+					}
+				}
+			}
+		}
+//#pragma omp barrier
+		Solution = Aux;
+		// heights
+		for (j = 0; j < grid.size_x; j++){
+			for (k = 0; k < grid.size_y; k++){
+#pragma omp parallel for private(l) schedule(static)
+				for (l = 0; l < grid.size_z; l++){
+					if (xi_z > 0){
+						Aux(j, k,l + rotate_z) = Solution(j,k,l) - xi_z*((Solution.slicerc(j,k)(l-(Order-1)/2,Order) -
+								Solution.slicerc(j,k)(l-(Order+1)/2, Order))*(CL*Xi_z));
+					}
+					else{
+						Aux(j, k,l + rotate_z) = Solution(j,k,l) - xi_z*((Solution.slicerc(j,k)(l-(Order-1)/2 + 1,Order) -
+								Solution.slicerc(j,k)(l-(Order-1)/2,   Order))*(CR*Xi_z));
+					}
+				}
+			}
+		}
+//#pragma omp barrier
+		Solution = Aux;
+
+	}
+	cout << sqrt((Solution - init_state).sqnorm()/grid.size_x/grid.size_y/grid.size_z) << "    ";
+}
+
+void WENO::Assign(Matrix<double>& CL, Matrix<double>& CR, int Order){
+	if (Order == 3){
+		CL(0,0) = -1./6; CL(0,1) = 0.   ; CL(0,2) = 1./6;
+		CL(1,0) = 5./6 ; CL(1,1) = 1./2 ; CL(1,2) = -1./3;
+		CL(2,0) = 1./3 ; CL(2,1) = -1./2; CL(2,2) = 1./6;
+
+		CR(0,0) = 1./3 ; CR(0,1) = -1./2; CR(0,2) = 1./6;
+		CR(1,0) = 5./6 ; CR(1,1) = 1./2 ; CR(1,2) = -1./3;
+		CR(2,0) = -1./6; CR(2,1) = 0.   ; CR(2,2) = 1./6;
+	}
+
+	if (Order == 5){
+		CL(0,0) = 1./30; CL(0,1) = 0. ;CL(0,2) = -1./24; CL(0,3) = 0.;CL(0,4) = 1./120;
+		CL(1,0) = -13./60; CL(1,1) = -1./24; CL(1,2) = 1./4; CL(1,3) = 1./24; CL(1,4) = -1./30;
+		CL(2,0) = 47./60; CL(2,1) = 5./8; CL(2,2) = -1./3; CL(2,3) = -1./8; CL(2,4) = 1./20;
+		CL(3,0) = 9./20; CL(3,1) = -5./8; CL(3,2) = 1./12; CL(3,3) = 1./8; CL(3,4) = -1./30;
+		CL(4,0) = -1./20; CL(4,1) = 1./24; CL(4,2) = 1./24; CL(4,3) = -1./24; CL(4,4) = 1./120;
+
+		for (int i = 0; i < Order; i++){
+			for (int j = 0; j < Order; j++){
+				CR(i,j) = CL(Order-1-i, j);
+			}
+		}
+
+	}
+
+
+	if (Order == 7){
+		CL(0,0) = -1. / 140 ;CL(0,1) = 0. ;CL(0,2) = 7. / 720;CL(0,3) = 0;CL(0,4) = -1. / 360;CL(0,5) = 0.;CL(0,6) = 1. / 5040;
+		CL(1,0) =5. / 84 ;CL(1,1) =1./ 180 ;CL(1,2) = -19. / 240 ;CL(1,3) = -1. / 144;CL(1,4) =  1. / 48 ;CL(1,5) = 1. / 720 ;CL(1,6) =  -1. / 840;
+		CL(2,0) =-101./ 420 ;CL(2,1) = -5. / 72;CL(2,2) = 7. / 24;CL(2,3) = 11. / 144 ;CL(2,4) = -13. / 240;CL(2,5) = -1. / 144;CL(2,6) =1./ 336 ;
+		CL(3,0) = 319. / 420;CL(3,1) = 49. / 72 ;CL(3,2) = -23. / 72;CL(3,3) = -7. / 36;CL(3,4) = 23. / 360;CL(3,5) = 1./ 72;CL(3,6) = -1. / 252;
+		CL(4,0) = 107. / 210 ;CL(4,1) = -49. / 72;CL(4,2) = 1. / 48;CL(4,3) = 7. / 36;CL(4,4) = -1./ 30;CL(4,5) =-1. / 72 ;CL(4,6) = 1. / 336;
+		CL(5,0) =-19. / 210 ;CL(5,1) =  5. / 72;CL(5,2) = 7. / 80;CL(5,3) = -11./ 144;CL(5,4) =1. / 240 ;CL(5,5) = 1. / 144;CL(5,6) = -1. / 840;
+		CL(6,0) = 1. / 105;CL(6,1) =  -1. / 180;CL(6,2) = -1./ 90;CL(6,3) =  1. / 144;CL(6,4) = 1. / 720;CL(6,5) = -1. / 720;CL(6,6) =1. / 5040 ;
+
+		for (int i = 0; i < Order; i++){
+			for (int j = 0; j < Order; j++){
+				CR(i,j) = CL(Order-1-i, j);
+			}
+		}
+	}
+
+	if (Order == 9){
+		CL(0,0)=1. / 630      ; CL(0,1)= 0.          ; CL(0,2)= -41. / 18144    ; CL(0,3)= 0.           ; CL(0,4)= 13. / 17280  ; CL(0,5)= 0.          ; CL(0,6)= -1. / 12096; CL(0,7)= 0.          ; CL(0,8)= 1./ 362880;
+		CL(1,0)=-41. / 2520   ; CL(1,1)= -1. / 1120  ; CL(1,2)=  2081. / 90720  ; CL(1,3)= 7. / 5760    ; CL(1,4)= -1./ 135     ; CL(1,5)= -1. / 2880  ; CL(1,6)= 23. / 30240; CL(1,7)= 1. / 40320  ; CL(1,8)= -1. / 45360;
+		CL(2,0)=199./ 2520    ; CL(2,1)= 17. / 1440  ; CL(2,2)= -281. / 2592    ; CL(2,3)= -89. / 5760  ; CL(2,4)= 139. / 4320  ; CL(2,5)= 11./ 2880   ; CL(2,6)= -17. / 6048; CL(2,7)= -1. / 5760  ; CL(2,8)= 1. / 12960;
+		CL(3,0)=-641. / 2520  ; CL(3,1)= -127./ 1440 ; CL(3,2)= 4097. / 12960   ; CL(3,3)= 587. / 5760  ; CL(3,4)= -29. / 432   ; CL(3,5)=  -41. / 2880; CL(3,6)= 167./ 30240; CL(3,7)= 1. / 1920   ; CL(3,8)= -1. / 6480;
+		CL(4,0)= 1879. / 2520 ; CL(4,1)= 205. / 288  ; CL(4,2)= -797./ 2592     ; CL(4,3)= -91. / 384   ; CL(4,4)= 587. / 8640  ; CL(4,5)= 5. / 192    ; CL(4,6)= -19. / 3024; CL(4,7)= -1./ 1152   ; CL(4,8)= 1. / 5184 ;
+		CL(5,0)= 275. / 504 ; CL(5,1)= -205. / 288   ; CL(5,2)= -59. / 2592  ; CL(5,3)= 91./ 384     ; CL(5,4)= -29. / 1080 ; CL(5,5)= -5. / 192  ; CL(5,6)= 25. / 6048  ; CL(5,7)= 1. / 1152; CL(5,8)=    -1./ 6480 ;
+		CL(6,0)= -61. / 504  ; CL(6,1)= 127. / 1440  ; CL(6,2)= 1637. / 12960; CL(6,3)= -587./ 5760  ; CL(6,4)= -17. / 4320 ; CL(6,5)= 41. / 2880 ; CL(6,6)= -43. / 30240; CL(6,7)= -1. / 1920; CL(6,8)= 1./ 12960 ;
+		CL(7,0)= 11. / 504   ; CL(7,1)= -17. / 1440  ; CL(7,2)= -491. / 18144; CL(7,3)= 89. / 5760   ; CL(7,4)= 11./ 2160   ; CL(7,5)= -11. / 2880; CL(7,6)= 1. / 6048   ; CL(7,7)= 1. / 5760; CL(7,8)= -1. / 45360;
+		CL(8,0)= -1./ 504    ; CL(8,1)=  1. / 1120   ; CL(8,2)= 59. / 22680  ; CL(8,3)= -7. / 5760   ; CL(8,4)= -11. / 17280; CL(8,5)= 1./ 2880   ; CL(8,6)= 1. / 60480  ; CL(8,7)= -1. / 40320; CL(8,8)= 1. / 362880;
+		for (int i = 0; i < Order; i++){
+			for (int j = 0; j < Order; j++){
+				CR(i,j) = CL(Order-1-i, j);
+			}
+		}
+
 	}
 }
 
-void WENO::MAKEXI(double _shift, VECTOR& _XI, int ORDER){
-	_XI(0) = 1.0;
-	for (int i = 1; i < ORDER; i++){
-		_XI(i) = fabs(_shift)*_XI(i-1);
+void WENO::MakeXi(double _xi, Vector<double>& _Xi, int Order){
+	// make Xi
+	_Xi(0) = 1.0;
+	for (int i = 1; i < Order; i++){
+		_Xi(i) = _Xi(i-1)*fabs(_xi);
 	}
 }

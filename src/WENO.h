@@ -1,42 +1,39 @@
 /*
  * WENO.h
  *
- *  Created on: Apr 10, 2014
+ *  Created on: Apr 15, 2014
  *      Author: lurker
  */
 
+#include "Util.hpp"
+
+// only work for periodical boundary condition
+
 #ifndef WENO_H_
 #define WENO_H_
-
-#include "Util.h"
 
 class WENO {
 public:
 	WENO();
 	virtual ~WENO();
-	// WENO SCHEME
-	// PERIODICAL BOUNDARY CONDITION
-	// CONST VECTOR FIELD
-	void PWENO_1D(int flag, int ORDER, const VECTOR init_state, Grid_1D grid, int time_step, double delta_t);
-	void PWENO_2D(int flag, int ORDER, const MATRIX init_state, Grid_2D grid, int time_step, double delta_t);
-	void PWENO_3D(int flag, int ORDER, const TENSOR init_state, Grid_3D grid, int time_step, double delta_t);
-	// VARIABLE VECTOR FIELD
-	void VPWENO_1D(int flag, int ORDER, const VECTOR init_state, Grid_1D grid, int time_step, double delta_t, VECTOR& Solution, VECTOR& AUX);
-	void VPWENO_2D(int flag, int ORDER, const MATRIX init_state, Grid_2D grid, int time_step, double delta_t, MATRIX& Solution, MATRIX& AUX);
-	void VPWENO_3D(int flag, int ORDER, const TENSOR init_state, Grid_3D grid, int time_step, double delta_t, TENSOR& Solution, TENSOR& AUX);
+	// base methods
+	void WENO1D(int flag, Vector<double> init_state, Grid_1D grid, int Order, int time_step, double delta_t);
+	void WENO2D(int flag, Matrix<double> init_state, Grid_2D grid, int Order, int time_step, double delta_t);
+	void WENO3D(int flag, Tensor<double> init_state, Grid_3D grid, int Order, int time_step, double delta_t);
 
-	//ABC BOUNDARY CONDITION, PML needed.
-	void NPWENO_1D(int flag,int ORDER, const VECTOR init_state, Grid_1D grid, int time_step, double delta_t);
-	void NPWENO_2D(int flag, int ORDER, const MATRIX init_state, Grid_2D grid, int time_step, double delta_t);
-	void NPWENO_3D(int flag, int ORDER, const TENSOR init_state, Grid_3D grid, int time_step, double delta_t);
-	// UTILITIES for VECTOR/MATRIX STUFF
-	void ASSEMBLE(MATRIX &C, int ORDER, double xshift);
-	void EXTEND(double& , int&, int& ,int, int&);
-	void MAKEXI(double, VECTOR&, int);
+	// variable velocity
+	void VWENO1D(Vector<double> init_state, Grid_1D grid,  int Order,int time_step, double delta_t, FuncVel_1D Vel_X);
+	void VWENO2D(Matrix<double> init_state, Grid_2D grid,  int Order,int time_step, double delta_t, FuncVel_2D Vel_X, FuncVel_2D Vel_Y);
+	void VWENO3D(Tensor<double> init_state, Grid_3D grid,  int Order,int time_step, double delta_t, FuncVel_3D Vel_X, FuncVel_3D Vel_Y, FuncVel_3D Vel_Z);
 
-	// UTILITIES for quick implementation
-	bool ph(double);
-	bool nh(double);
+	// constant velocity
+	void CWENO1D(Vector<double> init_state, Grid_1D grid,  int Order,int time_step, double delta_t, Const Vel_X);
+	void CWENO2D(Matrix<double> init_state, Grid_2D grid,  int Order,int time_step ,double delta_t, Const Vel_X, Const Vel_Y);
+	void CWENO3D(Tensor<double> init_state, Grid_3D grid,  int Order,int time_step, double delta_t, Const Vel_X, Const Vel_Y, Const Vel_Z);
+
+	// WENO matrix
+	void Assign(Matrix<double>&,Matrix<double>&, int Order);
+	void MakeXi(double xi, Vector<double>& Xi, int Order);
 
 };
 
