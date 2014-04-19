@@ -6,5 +6,5 @@ language: cpp
 
 script: 
     - make 
-    - ./cse-proj
+    - ./WENO
     - make clean
