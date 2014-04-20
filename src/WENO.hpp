@@ -35,6 +35,14 @@ public:
 	void Assign(Matrix<double>&,Matrix<double>&, int Order);
 	void MakeXi(double xi, Vector<double>& Xi, int Order);
 
+	// RK
+	double RK_2D(FuncVel_2D Vel_Unknown, int axis, double x, double y ,double time_start, double time_end);
+
+	// Splitting
+	void Split_2D(FuncVel_2D Vel_Unknown, int axis, Matrix<double>& Unknown_shift, Matrix<int>& Unknown_rotate,
+			Matrix<double>& Unknown_xi, Grid_2D grid, double delta_t, double time_start, double time_end);
+
+	void Update_2D(int axis, Matrix<double>& Solution, Matrix<double>& Aux, Matrix<double> xi, Matrix<int> rotate, Vector<double>& Xi, int Order,Matrix<double> CL, Matrix<double> CR);
 };
 
 #endif /* WENO_H_ */

@@ -5,7 +5,7 @@
  *      Author: lurker
  */
 
-#include "Interpolation.h"
+#include "Interpolation.hpp"
 
 Interpolation::Interpolation() {
 	// TODO Auto-generated constructor stub

@@ -8,10 +8,11 @@
 
 #include <iostream>
 #include "Util.hpp"
-#include "WENO.h"
+#include "WENO.hpp"
+#include "Interpolation.hpp"
 using namespace std;
 
-int test1D() {
+int test1D_Const_Delta_t_Const_Vel() {
 	std::cout<< std::setw(8) << "N" << std::setw(10) << "steps" << std::setw(15)
 		<< "delta_t" << std::setw(20) << "ORDER3" << std::setw(12) << "ORDER5" <<
 		std::setw(15) << "ORDER7" << std::setw(15)<< "ORDER9" << '\n';
@@ -41,7 +42,7 @@ int test1D() {
 		return 0;
 }
 
-int test2D() {
+int test2D_Const_Delta_t_Const_Vel() {
 	std::cout<< std::setw(8) << "N" << std::setw(10) << "steps" << std::setw(15)
 		<< "delta_t" << std::setw(20) << "ORDER3" << std::setw(12) << "ORDER5" <<
 		std::setw(15) << "ORDER7" << std::setw(15)<< "ORDER9" << '\n';
@@ -74,7 +75,7 @@ int test2D() {
 		return 0;
 }
 
-int test3D() {
+int test3D_Const_Delta_t_Const_Vel() {
 	std::cout<< std::setw(8) << "N" << std::setw(10) << "steps" << std::setw(15)
 		<< "delta_t" << std::setw(20) << "ORDER3" << std::setw(12) << "ORDER5" <<
 		std::setw(15) << "ORDER7" << std::setw(15)<< "ORDER9" << '\n';
@@ -109,6 +110,49 @@ int test3D() {
 		return 0;
 }
 
+double Vel_2D_X(double x,double y,  double t){
+	return -y;
+}
+
+double Vel_2D_Y(double x, double y, double t){
+	return x;
+}
+int test2D_Const_CFL_Variable_Vel() {
+	std::cout<< std::setw(8) << "N" << std::setw(10) << "steps" << std::setw(15)
+		<< "delta_t" << std::setw(20) << "ORDER3" << std::setw(12) << "ORDER5" <<
+		std::setw(15) << "ORDER7" << std::setw(15)<< "ORDER9" << '\n';
+		int N = 50;
+		int time_step = 30;
+		double delta_t = 1./100;
+		FuncVel_2D Vel_X, Vel_Y;
+		Vel_X = Vel_2D_X;
+		Vel_Y = Vel_2D_Y;
+		for (int k = 0;k < 2; k++){
+			N *=2;
+//			time_step *= 2;
+//			delta_t /= 2.;
+			Grid_2D grid(-1.,1., N,-1.,1.,N);
+			Matrix<double> init_state(N,N);
+			for (int i = 0; i < grid.size_x; i++){
+				for (int j = 0; j < grid.size_y; j++){
+					if ((fabs(grid.start_x + i*grid.delta_x) < 0.5) && fabs(grid.start_y+j*grid.delta_y) < 0.5)
+						init_state(i,j) = 1.0;
+				}
+			}
+			// periodic boundary
+			WENO SOLVER;
+			std::cout<< std::setw(8) << N << std::setw(10) << time_step <<
+					std::setw(15) << delta_t << std::setw(20);
+			SOLVER.VWENO2D(init_state,grid,3,time_step,delta_t,Vel_X,Vel_Y);
+			SOLVER.VWENO2D(init_state,grid,5,time_step,delta_t,Vel_X,Vel_Y);
+			SOLVER.VWENO2D(init_state,grid,7,time_step,delta_t,Vel_X,Vel_Y);
+			SOLVER.VWENO2D(init_state,grid,9,time_step,delta_t,Vel_X,Vel_Y);
+			std::cout << '\n';
+		}
+
+		return 0;
+}
+
 int testTensor(){
 	Tensor<int> A(3,3,3);
 	Tensor<int> B(3,3,3);
@@ -133,11 +177,29 @@ int testTensor(){
 	cout << A.sqnorm() << endl;
 	return 0;
 }
+
+int testVector(){
+	Vector<int> A(3);
+	Vector<int> B(3);
+	A(0) = 1; A(1) = 2;A(2) = 3;
+	cout << A(0) << A(3) << endl;
+	A += 1;
+
+	cout << A(0) << endl;
+	B = A;
+
+	A += B;
+
+	cout << A(0) << A(-5) << endl;
+
+	cout << A.sqnorm() << endl;
+	return 0;
+}
 int main(){
-	test1D();
-	test2D();
-	test3D();
-
-
-
+//	testVector();
+//	testTensor();
+//	test1D_Const_Delta_t_Const_Vel();
+	test2D_Const_CFL_Variable_Vel();
+//	test2D_Const_Delta_t_Const_Vel();
+//	test3D_Const_Delta_t_Const_Vel();
 }

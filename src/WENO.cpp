@@ -5,7 +5,7 @@
  *      Author: lurker
  */
 
-#include "WENO.h"
+#include "WENO.hpp"
 
 WENO::WENO() {
 	// TODO Auto-generated constructor stub
@@ -40,28 +40,19 @@ void WENO::CWENO1D(Vector<double> init_state, Grid_1D grid, int Order, int time_
 
 	int i,j;
 
-	if (xi > 0){
-		for (i = 0 ; i < time_step; i++){
+	for (i = 0 ; i < time_step; i++){
 #pragma omp parallel for private(j) schedule(static)
-			for (j = 0; j < grid.size_x; j++){
+		for (j = 0; j < grid.size_x; j++){
+			if (xi > 0){
 				Aux(j+rotate) = Solution(j) - xi*((Solution(j-(Order-1)/2, Order) - Solution(j-(Order+1)/2, Order))*(CL*Xi));
 			}
-//#pragma omp barrier
-			Solution = Aux;
-		}
-	}
-	else{
-		for (i =0; i < time_step; i++){
-#pragma omp parallel for private(j) schedule(static)
-			for (j = 0 ; j < grid.size_x; j++){
+			else{
 				Aux(j+rotate) = Solution(j)  - xi*((Solution(j-(Order-1)/2 + 1,Order) - Solution(j-(Order-1)/2,Order))*(CR*Xi));
 			}
-//#pragma omp barrier
-			Solution = Aux;
 		}
-
+//#pragma omp barrier
+		Solution = Aux;
 	}
-
 	cout << sqrt((Solution - init_state).sqnorm()/grid.size_x) <<"    ";
 
 }
@@ -220,6 +211,65 @@ void WENO::CWENO3D(Tensor<double> init_state, Grid_3D grid, int Order, int time_
 	cout << sqrt((Solution - init_state).sqnorm()/grid.size_x/grid.size_y/grid.size_z) << "    ";
 }
 
+void WENO::VWENO1D(Vector<double> init_state, Grid_1D grid, int Order, int time_step, double delta_t, FuncVel_1D Vel_X){
+	// cannot work since only constant velocity is divergence free.
+	// non divergence free case needs more work. See the failed case.
+}
+
+void WENO::VWENO2D(Matrix<double> init_state, Grid_2D grid, int Order, int time_step, double delta_t, FuncVel_2D Vel_X, FuncVel_2D Vel_Y){
+	// Divergence free and also divergence free on component which means
+	// d(V_x)/dx = 0, d(V_y)/dy = 0, d(V_z)/dz = 0
+	// i.e. V_x = F(y,z), V_y = G(z,x), V_z = H(x,y)
+	Matrix<double> Solution(grid.size_x,grid.size_y);
+	Matrix<double> Aux(grid.size_x,grid.size_y);
+
+	Matrix<double> xshift(grid.size_x , grid.size_y);
+	Matrix<double> yshift(grid.size_x , grid.size_y);
+	Matrix<int>    rotate_x(grid.size_x, grid.size_y);
+	Matrix<int>    rotate_y(grid.size_x, grid.size_y);
+	Matrix<double> xi_x(grid.size_x, grid.size_y);
+	Matrix<double> xi_y(grid.size_x, grid.size_y);
+
+	Vector<double> Xi_x(Order);
+	Vector<double> Xi_y(Order);
+
+	Matrix<double> CL(Order,Order);
+	Matrix<double> CR(Order,Order);
+	Assign(CL,CR,Order);
+
+	Solution = init_state;
+	int i;
+	for (i=0; i < time_step; i++){
+		// splitting first order
+		// rows
+		Split_2D(Vel_X, 1, xshift,rotate_x, xi_x, grid, delta_t, i*delta_t, (i+1./2)*delta_t);
+		Update_2D(1 , Solution, Aux, xi_x, rotate_x, Xi_x, Order,  CL, CR);
+		// columns
+		Split_2D(Vel_Y, 2, yshift,rotate_y, xi_y, grid, delta_t, i*delta_t, (i+1.)*delta_t);
+		Update_2D(2, Solution, Aux, xi_y, rotate_y, Xi_y, Order,  CL, CR);
+
+		Split_2D(Vel_X, 1, xshift,rotate_x, xi_x, grid, delta_t, (i+1./2)*delta_t, (i+1.)*delta_t);
+		Update_2D(1 , Solution, Aux, xi_x, rotate_x, Xi_x, Order,  CL, CR);
+
+//		Split_2D(Vel_X, 1, xshift,rotate_x, xi_x, grid, delta_t, i*delta_t, (i+1.)*delta_t);
+//		Update_2D(1 , Solution, Aux, xi_x, rotate_x, Xi_x, Order,  CL, CR);
+//		// columns
+//		Split_2D(Vel_Y, 2, yshift,rotate_y, xi_y, grid, delta_t, i*delta_t, (i+1.)*delta_t);
+//		Update_2D(2, Solution, Aux, xi_y, rotate_y, Xi_y, Order,  CL, CR);
+	}
+	for (int i = 0; i < grid.size_x; i++){
+		for (int j = 0; j < grid.size_y; j++){
+			if (Solution(i,j) > 0.1){
+				init_state(i,j) = 1.0;
+			}
+			else{
+				init_state(i,j) = 0.0;
+			}
+		}
+	}
+	cout << sqrt((Solution - init_state).sqnorm()/grid.size_x/grid.size_y) << "    ";
+}
+
 void WENO::Assign(Matrix<double>& CL, Matrix<double>& CR, int Order){
 	if (Order == 3){
 		CL(0,0) = -1./6; CL(0,1) = 0.   ; CL(0,2) = 1./6;
@@ -287,5 +337,75 @@ void WENO::MakeXi(double _xi, Vector<double>& _Xi, int Order){
 	_Xi(0) = 1.0;
 	for (int i = 1; i < Order; i++){
 		_Xi(i) = _Xi(i-1)*fabs(_xi);
+	}
+}
+
+double WENO::RK_2D(FuncVel_2D Vel_Unknown, int axis, double x, double y ,double time_start, double time_end){
+	double k1,k2,k3,k4;
+	if (axis == 2){
+		k1 = Vel_Unknown(x, y , time_end);
+		k2 = Vel_Unknown(x, y - .5*k1*(time_end - time_start), .5*time_end + .5*time_start);
+		k3 = Vel_Unknown(x,	y - .5*k2*(time_end - time_start), .5*time_end + .5*time_start);
+		k4 = Vel_Unknown(x, y - k3*(time_end - time_start), time_start);
+		return (k1 + 2*k2+2*k3 + k4)/6.;
+	}
+	else{
+		k1 = Vel_Unknown(x, y , time_end);
+		k2 = Vel_Unknown(x - .5*k1*(time_end - time_start), y , .5*time_end + .5*time_start);
+		k3 = Vel_Unknown(x - .5*k2*(time_end - time_start),	y , .5*time_end + .5*time_start);
+		k4 = Vel_Unknown(x - k3*(time_end - time_start), y , time_start);
+		return (k1 + 2*k2+2*k3 + k4)/6.;
+	}
+}
+
+void WENO::Split_2D(FuncVel_2D Vel_Unknown, int axis, Matrix<double>& Unknown_shift, Matrix<int>& Unknown_rotate,
+		Matrix<double>& Unknown_xi, Grid_2D grid, double delta_t, double time_start, double time_end){
+	for (int j = 0 ; j < grid.size_x; j++){
+//#pragma omp parallel for private(k) schedule(static)
+		for (int k = 0; k < grid.size_y; k++){
+			Unknown_shift(j,k) = RK_2D(Vel_Unknown, axis, grid.start_x +j*grid.delta_x, grid.start_y + k*grid.delta_y, time_start, time_end)*delta_t / grid.delta_x;
+			Unknown_rotate(j,k) = floor(Unknown_shift(j,k) + 0.5);
+			Unknown_xi(j,k)  = Unknown_shift(j,k) - Unknown_rotate(j,k);
+		}
+	}
+}
+
+void WENO::Update_2D(int axis, Matrix<double>& Solution, Matrix<double>& Aux, Matrix<double> xi, Matrix<int> rotate, Vector<double>& Xi,
+		int Order,Matrix<double> CL, Matrix<double> CR){
+	if (axis == 1){
+		for (int j = 0; j < Solution.dim_x; j++){
+	//#pragma omp parallel for private(k) schedule(static)
+			for (int k = 0; k < Solution.dim_y; k++){
+				MakeXi(xi(j,k), Xi, Order);
+				if (xi(j,k) > 0){
+					Aux(j+rotate(j,k), k) = Solution(j,k) - xi(j,k)*((Solution.slicec(k)(j-(Order-1)/2, Order) -
+							Solution.slicec(k)(j-(Order+1)/2, Order))*(CL*Xi));
+				}
+				else{
+					Aux(j+rotate(j,k), k) = Solution(j,k)  - xi(j,k)*((Solution.slicec(k)(j-(Order-1)/2 + 1,Order) -
+							Solution.slicec(k)(j-(Order-1)/2,Order))*(CR*Xi));
+				}
+			}
+		}
+	//#pragma omp barrier
+		Solution = Aux;
+	}
+	else{
+		for (int j = 0; j < Solution.dim_x; j++){
+//#pragma omp parallel for private(k) schedule(static)
+			for (int k = 0; k < Solution.dim_y; k++){
+				MakeXi(xi(j,k), Xi, Order);
+				if (xi(j,k) > 0){
+					Aux(j, k+rotate(j,k)) = Solution(j,k) - xi(j,k)*((Solution.slicer(j)(k-(Order-1)/2,Order) -
+							Solution.slicer(j)(k-(Order+1)/2, Order))*(CL*Xi));
+				}
+				else{
+					Aux(j, k+rotate(j,k)) = Solution(j,k) - xi(j,k)*((Solution.slicer(j)(k-(Order-1)/2 + 1,Order) -
+							Solution.slicer(j)(k-(Order-1)/2,   Order))*(CR*Xi));
+				}
+			}
+		}
+//#pragma omp barrier
+		Solution = Aux;
 	}
 }

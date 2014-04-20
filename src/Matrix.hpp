@@ -137,14 +137,27 @@ public:
 		}
 		return sub;
 	}
+
 	double sqnorm(){
-		double ret = 0;
-		for (int i=0 ; i < (*this).dim_x; i++){
-			for (int j=0 ; j < (*this).dim_y; j++){
-			ret += (*this)(i,j)*(*this)(i,j);
+			double ret = 0;
+			for (int i=0 ; i < (*this).dim_x; i++){
+				for (int j=0 ; j < (*this).dim_y; j++){
+				ret += (*this)(i,j)*(*this)(i,j);
+				}
 			}
+			return ret;
 		}
-		return ret;
+
+	void Write(string filename){
+		ofstream sol;
+		sol.open(filename.c_str());
+		for (int i=0; i < (*this).dim_x; i++){
+			for (int j = 0; j < (*this).dim_y; j++){
+				sol << (*this)(i,j) << ",";
+			}
+			sol <<"\n";
+		}
+		sol.close();
 	}
 };
 

@@ -105,6 +105,13 @@ public:
 		}
 		return ret;
 	}
+	double TVnorm(){
+		double ret = 0;
+		for (int i=0 ; i < (*this).dim; i++){
+			ret += fabs((*this)(i));
+		}
+		return ret;
+	}
 };
 
 template <class T> T& Vector<T>::operator ()(const int location){
