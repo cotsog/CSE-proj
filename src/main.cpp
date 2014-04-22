@@ -1,9 +1,9 @@
 //============================================================================
 // Name        : WENO.cpp
-// Author      : 
+// Author      : nlmd group
 // Version     :
-// Copyright   : Your copyright notice
-// Description : Hello World in C++, Ansi-style
+// Copyright   : Copyright@nlmd 2014
+// Description : WENO in C++, Ansi-style
 //============================================================================
 
 #include <iostream>
@@ -121,22 +121,22 @@ int test2D_Const_CFL_Variable_Vel() {
 	std::cout<< std::setw(8) << "N" << std::setw(10) << "steps" << std::setw(15)
 		<< "delta_t" << std::setw(20) << "ORDER3" << std::setw(12) << "ORDER5" <<
 		std::setw(15) << "ORDER7" << std::setw(15)<< "ORDER9" << '\n';
-		int N = 20;
+		int N = 10;
 		int time_step = 10;
-		double delta_t = 2*PI/40;
+		double delta_t = 2*PI/10;
 		FuncVel_2D Vel_X, Vel_Y;
 		Vel_X = Vel_2D_X;
 		Vel_Y = Vel_2D_Y;
 		for (int k = 0;k < 4; k++){
 			N *=2;
-			time_step *= 2;
-			delta_t /= 2.;
+//			time_step *= 2;
+//			delta_t /= 2.;
 			Grid_2D grid(-1.,1., N,-1.,1.,N);
 			Matrix<double> init_state(N,N);
 			for (int i = 0; i < grid.size_x; i++){
 				for (int j = 0; j < grid.size_y; j++){
 					if ((fabs(grid.start_x + i*grid.delta_x) < 0.5) && fabs(grid.start_y+j*grid.delta_y) < 0.5)
-					//if ((i==grid.size_x/4) && (j==grid.size_y/2))
+//					if ((i==grid.size_x/4) && (j==grid.size_y/2))
 						init_state(i,j) = 1.0;
 				}
 			}
