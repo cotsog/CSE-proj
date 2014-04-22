@@ -1,8 +1,8 @@
 //============================================================================
 // Name        : WENO.cpp
-// Author      : nlmd group
-// Version     :
-// Copyright   : Copyright@nlmd 2014
+// Author      : lurker
+// Version     : 0.0.1
+// Copyright   : Copyright@nlmd_group 2014
 // Description : WENO in C++, Ansi-style
 //============================================================================
 
@@ -127,17 +127,19 @@ int test2D_Const_CFL_Variable_Vel() {
 		FuncVel_2D Vel_X, Vel_Y;
 		Vel_X = Vel_2D_X;
 		Vel_Y = Vel_2D_Y;
-		for (int k = 0;k < 4; k++){
+		for (int k = 0;k < 3; k++){
 			N *=2;
-//			time_step *= 2;
-//			delta_t /= 2.;
+			time_step *= 2;
+			delta_t /= 2.;
 			Grid_2D grid(-1.,1., N,-1.,1.,N);
 			Matrix<double> init_state(N,N);
 			for (int i = 0; i < grid.size_x; i++){
 				for (int j = 0; j < grid.size_y; j++){
-					if ((fabs(grid.start_x + i*grid.delta_x) < 0.5) && fabs(grid.start_y+j*grid.delta_y) < 0.5)
-//					if ((i==grid.size_x/4) && (j==grid.size_y/2))
-						init_state(i,j) = 1.0;
+					//if ((fabs(grid.start_x + i*grid.delta_x) < 0.5) && fabs(grid.start_y+j*grid.delta_y) < 0.5)
+					//if ((i>=grid.size_x/2) && (i<= grid.size_x*3/4) && (j == grid.size_y/2))
+					//if (pow(grid.start_x + i*grid.delta_x,2) + pow(grid.start_y+j*grid.delta_y,2) <= 0.64)
+					if((fabs(grid.start_x + i*grid.delta_x) < 0.5) && (fabs(grid.start_y + j*grid.delta_y) < 0.5))
+						init_state(i,j) = min(0.5 - fabs(grid.start_x + i*grid.delta_x),0.5 -fabs(grid.start_y + j*grid.delta_y)) ;
 				}
 			}
 			// periodic boundary
