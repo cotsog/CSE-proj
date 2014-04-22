@@ -153,7 +153,7 @@ public:
 		sol.open(filename.c_str());
 		for (int i=0; i < (*this).dim_x; i++){
 			for (int j = 0; j < (*this).dim_y; j++){
-				sol << (*this)(i,j) << ",";
+				sol << (*this)(i,j) << "\t";
 			}
 			sol <<"\n";
 		}

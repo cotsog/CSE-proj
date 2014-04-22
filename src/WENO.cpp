@@ -244,29 +244,23 @@ void WENO::VWENO2D(Matrix<double> init_state, Grid_2D grid, int Order, int time_
 		// rows
 		Split_2D(Vel_X, 1, xshift,rotate_x, xi_x, grid, delta_t, i*delta_t, (i+1./2)*delta_t);
 		Update_2D(1 , Solution, Aux, xi_x, rotate_x, Xi_x, Order,  CL, CR);
+
 		// columns
 		Split_2D(Vel_Y, 2, yshift,rotate_y, xi_y, grid, delta_t, i*delta_t, (i+1.)*delta_t);
 		Update_2D(2, Solution, Aux, xi_y, rotate_y, Xi_y, Order,  CL, CR);
 
 		Split_2D(Vel_X, 1, xshift,rotate_x, xi_x, grid, delta_t, (i+1./2)*delta_t, (i+1.)*delta_t);
 		Update_2D(1 , Solution, Aux, xi_x, rotate_x, Xi_x, Order,  CL, CR);
-
+				
+//		string filename = std::to_string(i) + ".txt";
+//		Solution.Write(filename);
 //		Split_2D(Vel_X, 1, xshift,rotate_x, xi_x, grid, delta_t, i*delta_t, (i+1.)*delta_t);
 //		Update_2D(1 , Solution, Aux, xi_x, rotate_x, Xi_x, Order,  CL, CR);
 //		// columns
 //		Split_2D(Vel_Y, 2, yshift,rotate_y, xi_y, grid, delta_t, i*delta_t, (i+1.)*delta_t);
 //		Update_2D(2, Solution, Aux, xi_y, rotate_y, Xi_y, Order,  CL, CR);
 	}
-	for (int i = 0; i < grid.size_x; i++){
-		for (int j = 0; j < grid.size_y; j++){
-			if (Solution(i,j) > 0.1){
-				init_state(i,j) = 1.0;
-			}
-			else{
-				init_state(i,j) = 0.0;
-			}
-		}
-	}
+
 	cout << sqrt((Solution - init_state).sqnorm()/grid.size_x/grid.size_y) << "    ";
 }
 
@@ -347,14 +341,14 @@ double WENO::RK_2D(FuncVel_2D Vel_Unknown, int axis, double x, double y ,double 
 		k2 = Vel_Unknown(x, y - .5*k1*(time_end - time_start), .5*time_end + .5*time_start);
 		k3 = Vel_Unknown(x,	y - .5*k2*(time_end - time_start), .5*time_end + .5*time_start);
 		k4 = Vel_Unknown(x, y - k3*(time_end - time_start), time_start);
-		return (k1 + 2*k2+2*k3 + k4)/6.;
+		return (k1 + 2*k2+2*k3 + k4)*(time_end - time_start)/6.;
 	}
 	else{
 		k1 = Vel_Unknown(x, y , time_end);
 		k2 = Vel_Unknown(x - .5*k1*(time_end - time_start), y , .5*time_end + .5*time_start);
 		k3 = Vel_Unknown(x - .5*k2*(time_end - time_start),	y , .5*time_end + .5*time_start);
 		k4 = Vel_Unknown(x - k3*(time_end - time_start), y , time_start);
-		return (k1 + 2*k2+2*k3 + k4)/6.;
+		return (k1 + 2*k2+2*k3 + k4)*(time_end -time_start)/6.;
 	}
 }
 
@@ -363,7 +357,7 @@ void WENO::Split_2D(FuncVel_2D Vel_Unknown, int axis, Matrix<double>& Unknown_sh
 	for (int j = 0 ; j < grid.size_x; j++){
 //#pragma omp parallel for private(k) schedule(static)
 		for (int k = 0; k < grid.size_y; k++){
-			Unknown_shift(j,k) = RK_2D(Vel_Unknown, axis, grid.start_x +j*grid.delta_x, grid.start_y + k*grid.delta_y, time_start, time_end)*delta_t / grid.delta_x;
+			Unknown_shift(j,k) = RK_2D(Vel_Unknown, axis, grid.start_x +j*grid.delta_x, grid.start_y + k*grid.delta_y, time_start, time_end)/ grid.delta_x;
 			Unknown_rotate(j,k) = floor(Unknown_shift(j,k) + 0.5);
 			Unknown_xi(j,k)  = Unknown_shift(j,k) - Unknown_rotate(j,k);
 		}
