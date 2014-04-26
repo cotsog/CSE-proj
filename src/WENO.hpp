@@ -41,8 +41,18 @@ public:
 	// Splitting
 	void Split_2D(FuncVel_2D Vel_Unknown, int axis, Matrix<double>& Unknown_shift, Matrix<int>& Unknown_rotate,
 			Matrix<double>& Unknown_xi, Grid_2D grid, double delta_t, double time_start, double time_end);
-
-	void Update_2D(int axis, Matrix<double>& Solution, Matrix<double>& Aux, Matrix<double> xi, Matrix<int> rotate, Vector<double>& Xi, int Order,Matrix<double> CL, Matrix<double> CR);
+	// update
+	void Update_2D(int axis, Matrix<double>& Solution, Matrix<double>& Aux, Matrix<double> xi, Matrix<int> rotate, Vector<double>& Xi, 
+			int Order,Matrix<double> CL, Matrix<double> CR);
+	// Split scheme, can be updated. Alrady have first order, Strang, Yoshida
+	Matrix<double> SplitScheme(int order, int dimenstion);
+	
+	// Splitting 
+	void Split_3D(FuncVel_3D _Vel, int _axis, Tensor<double>& _shift, Tensor<int>& _rotate, 
+			Tensor<double>& _xi, Grid_3D grid, double delta_t, double time_start, double time_end);
+	// update	
+	void Update_3D(int _axis, Tensor<double>& Solution, Tensor<double>& Aux, Tensor<double> _xi, Tensor<int> _rotate, Vector<double>& Xi,
+			int Order, Tensor<double> CL, Tensor<double> CR);
 };
 
 #endif /* WENO_H_ */

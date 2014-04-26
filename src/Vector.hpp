@@ -105,6 +105,16 @@ public:
 		}
 		return ret;
 	}
+	double L1norm(){
+		double ret = 0;
+		for (int i=0 ; i < (*this).dim; i++){
+			ret += fabs((*this)(i));
+		}
+		return ret;
+	}
+	double L2norm(){
+		return sqrt((*this).sqnorm());
+	}
 	double TVnorm(){
 		double ret = 0;
 		for (int i=0 ; i < (*this).dim; i++){

@@ -69,8 +69,6 @@ void WENO::CWENO2D(Matrix<double> init_state, Grid_2D grid, int Order, int time_
 	double xi_x = xshift - rotate_x;
 	double xi_y = yshift - rotate_y;
 
-//	Vector<double> Sub_1(Order);
-//	Vector<double> Sub_2(Order);
 	Vector<double> Xi_x(Order);
 	Vector<double> Xi_y(Order);
 
@@ -236,32 +234,116 @@ void WENO::VWENO2D(Matrix<double> init_state, Grid_2D grid, int Order, int time_
 	Matrix<double> CL(Order,Order);
 	Matrix<double> CR(Order,Order);
 	Assign(CL,CR,Order);
+	
+	// use fourth order scheme in time.
+	Matrix<double> Scheme(2,4);
+	Scheme= SplitScheme(4,2);
 
 	Solution = init_state;
-	int i;
+	int i, j;
+	double sch1 , sch2 ;
 	for (i=0; i < time_step; i++){
-		// splitting first order
-		// rows
-		Split_2D(Vel_X, 1, xshift,rotate_x, xi_x, grid, delta_t, i*delta_t, (i+1./2)*delta_t);
-		Update_2D(1 , Solution, Aux, xi_x, rotate_x, Xi_x, Order,  CL, CR);
+		sch1 = 0.;sch2 = 0.;
+		for (j = 0; j < Scheme.dim_y; j++){
+			Split_2D(Vel_X, 1, xshift,rotate_x, xi_x, grid, delta_t, (i+sch1)*delta_t, (i+sch1 + Scheme(0,j))*delta_t);
+			Update_2D(1 , Solution, Aux, xi_x, rotate_x, Xi_x, Order,  CL, CR);
+			Split_2D(Vel_Y, 2, yshift,rotate_y, xi_y, grid, delta_t, (i+sch2)*delta_t, (i+sch2 + Scheme(1,j))*delta_t);
+			Update_2D(2, Solution, Aux, xi_y, rotate_y, Xi_y, Order,  CL, CR);	
+			sch1 += Scheme(0,j);
+			sch2 += Scheme(1,j);
+		}
 
-		// columns
-		Split_2D(Vel_Y, 2, yshift,rotate_y, xi_y, grid, delta_t, i*delta_t, (i+1.)*delta_t);
-		Update_2D(2, Solution, Aux, xi_y, rotate_y, Xi_y, Order,  CL, CR);
-
-		Split_2D(Vel_X, 1, xshift,rotate_x, xi_x, grid, delta_t, (i+1./2)*delta_t, (i+1.)*delta_t);
-		Update_2D(1 , Solution, Aux, xi_x, rotate_x, Xi_x, Order,  CL, CR);
-				
-//		string filename = std::to_string(i) + ".txt";
-//		Solution.Write(filename);
-//		Split_2D(Vel_X, 1, xshift,rotate_x, xi_x, grid, delta_t, i*delta_t, (i+1.)*delta_t);
-//		Update_2D(1 , Solution, Aux, xi_x, rotate_x, Xi_x, Order,  CL, CR);
-//		// columns
-//		Split_2D(Vel_Y, 2, yshift,rotate_y, xi_y, grid, delta_t, i*delta_t, (i+1.)*delta_t);
-//		Update_2D(2, Solution, Aux, xi_y, rotate_y, Xi_y, Order,  CL, CR);
+		//string filename = std::to_string(i) +  ".txt" + std::to_string(Order);
+		//Solution.Write(filename);
 	}
+	//string init_filename = "init.txt" ;
+	//init_state.Write(init_filename);
+	cout << (Solution - init_state).L1norm()/grid.size_x/grid.size_y << "    ";
+}
 
-	cout << sqrt((Solution - init_state).sqnorm()/grid.size_x/grid.size_y) << "    ";
+void WENO::VWENO3D(Tensor<double> init_state, Grid_3D grid, int Order, int time_step, double delta_t,FuncVel_3D Vel_X, FuncVel_3D Vel_Y, FuncVel_3D Vel_Z){
+	Tensor<double> Solution(grid.size_x,grid.size_y,grid.size_z);
+	Tensor<double> Aux(grid.size_x,grid.size_y,grid.size_z);
+
+	Tensor<double> xshift(grid.size_x , grid.size_y, grid.size_z);
+	Tensor<double> yshift(grid.size_x , grid.size_y, grid.size_z);
+	Tensor<int>    rotate_x(grid.size_x, grid.size_y, grid.size_z);
+	Tensor<int>    rotate_y(grid.size_x, grid.size_y, grid.size_z);
+	Tensor<double> xi_x(grid.size_x, grid.size_y, grid.size_z);
+	Tensor<double> xi_y(grid.size_x, grid.size_y, grid.size_z);
+
+	Vector<double> Xi_x(Order);
+	Vector<double> Xi_y(Order);
+
+	Matrix<double> CL(Order,Order);
+	Matrix<double> CR(Order,Order);
+	
+	Assign(CL,CR,Order);
+	
+	// use fourth order scheme in time.
+	Matrix<double> Scheme(2,4);
+	Scheme= SplitScheme(4,3);
+	
+	Solution = init_state;
+	//int i, j;
+	//double sch1 , sch2 ;
+	
+	//for (i = 0 ; i < time_step; i++){
+		
+		
+		
+		
+	//}
+
+}
+Matrix<double> WENO::SplitScheme(int order, int dimension){
+	if (dimension == 2){
+		// 2D split scheme
+		if (order == 1){
+			Matrix<double> Scheme(2,1);
+			Scheme(0,0) = 1.0;
+			Scheme(1,0) = 1.0;
+			return Scheme;
+		}
+		else if(order == 2){
+			// strang split
+			Matrix<double> Scheme(2,2);
+			Scheme(0,0) = 1./2.;
+			Scheme(1,0) = 1.0;
+			Scheme(0,1) = 1./2.;
+			Scheme(1,1) = 0.0;	
+			return Scheme;
+		}
+		else{
+			// Yoshida
+			Matrix<double> Scheme(2,4);
+			Scheme(0,0) = 0.0; // a1
+			Scheme(1,0) = 0.67560359595979829; //b1
+			Scheme(0,1) = 1.351207191959658; //a2
+			Scheme(1,1) = .5*(1-2*Scheme(1,0)); //b2
+			Scheme(0,2) = 1-2*Scheme(0,1); //a3
+			Scheme(1,2) = Scheme(1,1);//b3
+			Scheme(0,3) = Scheme(0,1);//a4
+			Scheme(1,3) = Scheme(1,0);//b4
+			return Scheme;
+		}	
+	}
+	else{
+		if (order == 1){
+			Matrix<double> Scheme(3,1);
+			return Scheme;
+
+		}
+		else if (order == 2){
+			Matrix<double> Scheme(3,2);
+			return Scheme;
+		}
+		else{
+			Matrix<double> Scheme(3,4);
+			return Scheme;
+		}
+		
+	}
 }
 
 void WENO::Assign(Matrix<double>& CL, Matrix<double>& CR, int Order){
@@ -341,14 +423,14 @@ double WENO::RK_2D(FuncVel_2D Vel_Unknown, int axis, double x, double y ,double 
 		k2 = Vel_Unknown(x, y - .5*k1*(time_end - time_start), .5*time_end + .5*time_start);
 		k3 = Vel_Unknown(x,	y - .5*k2*(time_end - time_start), .5*time_end + .5*time_start);
 		k4 = Vel_Unknown(x, y - k3*(time_end - time_start), time_start);
-		return (k1 + 2*k2+2*k3 + k4)*(time_end - time_start)/6.;
+		return (k1 + 2.*k2+2.*k3 + k4)*(time_end - time_start)/6.;
 	}
 	else{
 		k1 = Vel_Unknown(x, y , time_end);
 		k2 = Vel_Unknown(x - .5*k1*(time_end - time_start), y , .5*time_end + .5*time_start);
 		k3 = Vel_Unknown(x - .5*k2*(time_end - time_start),	y , .5*time_end + .5*time_start);
 		k4 = Vel_Unknown(x - k3*(time_end - time_start), y , time_start);
-		return (k1 + 2*k2+2*k3 + k4)*(time_end -time_start)/6.;
+		return (k1 + 2.*k2+2.*k3 + k4)*(time_end -time_start)/6.;
 	}
 }
 
@@ -357,7 +439,11 @@ void WENO::Split_2D(FuncVel_2D Vel_Unknown, int axis, Matrix<double>& Unknown_sh
 	for (int j = 0 ; j < grid.size_x; j++){
 //#pragma omp parallel for private(k) schedule(static)
 		for (int k = 0; k < grid.size_y; k++){
-			Unknown_shift(j,k) = RK_2D(Vel_Unknown, axis, grid.start_x +j*grid.delta_x, grid.start_y + k*grid.delta_y, time_start, time_end)/ grid.delta_x;
+			if (axis == 1)
+				Unknown_shift(j,k) = RK_2D(Vel_Unknown, axis, grid.start_x +j*grid.delta_x, grid.start_y + k*grid.delta_y, time_start, time_end)/ grid.delta_x;
+			else
+				Unknown_shift(j,k) = RK_2D(Vel_Unknown, axis, grid.start_x +j*grid.delta_x, grid.start_y + k*grid.delta_y, time_start, time_end)/ grid.delta_y;
+
 			Unknown_rotate(j,k) = floor(Unknown_shift(j,k) + 0.5);
 			Unknown_xi(j,k)  = Unknown_shift(j,k) - Unknown_rotate(j,k);
 		}

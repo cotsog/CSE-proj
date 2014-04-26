@@ -147,6 +147,20 @@ public:
 			}
 			return ret;
 		}
+		
+	double L1norm(){
+			double ret = 0;
+			for (int i=0 ; i < (*this).dim_x; i++){
+				for (int j=0 ; j < (*this).dim_y; j++){
+				ret += fabs((*this)(i,j));
+				}
+			}
+			return ret;
+		}
+		
+	double L2norm(){
+			return sqrt((*this).sqnorm());
+		}
 
 	void Write(string filename){
 		ofstream sol;
