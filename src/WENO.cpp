@@ -53,7 +53,7 @@ void WENO::CWENO1D(Vector<double> init_state, Grid_1D grid, int Order, int time_
 //#pragma omp barrier
 		Solution = Aux;
 	}
-	cout << sqrt((Solution - init_state).sqnorm()/grid.size_x) <<"    ";
+	cout <<std::setw(16) <<  sqrt((Solution - init_state).sqnorm()/grid.size_x);
 
 }
 
@@ -117,7 +117,7 @@ void WENO::CWENO2D(Matrix<double> init_state, Grid_2D grid, int Order, int time_
 		Solution = Aux;
 
 	}
-	cout << sqrt((Solution - init_state).sqnorm()/grid.size_x/grid.size_y) << "    ";
+	cout << std::setw(16) << sqrt((Solution - init_state).sqnorm()/grid.size_x/grid.size_y);
 }
 
 void WENO::CWENO3D(Tensor<double> init_state, Grid_3D grid, int Order, int time_step, double delta_t, double Vel_X, double Vel_Y, double Vel_Z){
@@ -206,7 +206,7 @@ void WENO::CWENO3D(Tensor<double> init_state, Grid_3D grid, int Order, int time_
 		Solution = Aux;
 
 	}
-	cout << sqrt((Solution - init_state).sqnorm()/grid.size_x/grid.size_y/grid.size_z) << "    ";
+	cout << std::setw(16) << sqrt((Solution - init_state).sqnorm()/grid.size_x/grid.size_y/grid.size_z);
 }
 
 void WENO::VWENO1D(Vector<double> init_state, Grid_1D grid, int Order, int time_step, double delta_t, FuncVel_1D Vel_X){
@@ -231,6 +231,7 @@ void WENO::VWENO2D(Matrix<double> init_state, Grid_2D grid, int Order, int time_
 	Vector<double> Xi_x(Order);
 	Vector<double> Xi_y(Order);
 
+	// serial part
 	Matrix<double> CL(Order,Order);
 	Matrix<double> CR(Order,Order);
 	Assign(CL,CR,Order);
@@ -244,6 +245,7 @@ void WENO::VWENO2D(Matrix<double> init_state, Grid_2D grid, int Order, int time_
 	double sch1 , sch2 ;
 	for (i=0; i < time_step; i++){
 		sch1 = 0.;sch2 = 0.;
+		// time splitting cannot be parallelized
 		for (j = 0; j < Scheme.dim_y; j++){
 			Split_2D(Vel_X, 1, xshift,rotate_x, xi_x, grid, delta_t, (i+sch1)*delta_t, (i+sch1 + Scheme(0,j))*delta_t);
 			Update_2D(1 , Solution, Aux, xi_x, rotate_x, Xi_x, Order,  CL, CR);
@@ -258,7 +260,7 @@ void WENO::VWENO2D(Matrix<double> init_state, Grid_2D grid, int Order, int time_
 	}
 	//string init_filename = "init.txt" ;
 	//init_state.Write(init_filename);
-	cout << (Solution - init_state).L1norm()/grid.size_x/grid.size_y << "    ";
+	cout << std::setw(16)<<(Solution - init_state).L1norm()/grid.size_x/grid.size_y;
 }
 
 void WENO::VWENO3D(Tensor<double> init_state, Grid_3D grid, int Order, int time_step, double delta_t,FuncVel_3D Vel_X, FuncVel_3D Vel_Y, FuncVel_3D Vel_Z){
@@ -296,6 +298,9 @@ void WENO::VWENO3D(Tensor<double> init_state, Grid_3D grid, int Order, int time_
 	//}
 
 }
+
+
+// use serial
 Matrix<double> WENO::SplitScheme(int order, int dimension){
 	if (dimension == 2){
 		// 2D split scheme
@@ -436,9 +441,10 @@ double WENO::RK_2D(FuncVel_2D Vel_Unknown, int axis, double x, double y ,double 
 
 void WENO::Split_2D(FuncVel_2D Vel_Unknown, int axis, Matrix<double>& Unknown_shift, Matrix<int>& Unknown_rotate,
 		Matrix<double>& Unknown_xi, Grid_2D grid, double delta_t, double time_start, double time_end){
-	for (int j = 0 ; j < grid.size_x; j++){
-//#pragma omp parallel for private(k) schedule(static)
-		for (int k = 0; k < grid.size_y; k++){
+	int j,k;
+	for (j = 0 ; j < grid.size_x; j++){
+#pragma omp parallel for
+		for (k = 0; k < grid.size_y; k++){
 			if (axis == 1)
 				Unknown_shift(j,k) = RK_2D(Vel_Unknown, axis, grid.start_x +j*grid.delta_x, grid.start_y + k*grid.delta_y, time_start, time_end)/ grid.delta_x;
 			else
@@ -447,15 +453,18 @@ void WENO::Split_2D(FuncVel_2D Vel_Unknown, int axis, Matrix<double>& Unknown_sh
 			Unknown_rotate(j,k) = floor(Unknown_shift(j,k) + 0.5);
 			Unknown_xi(j,k)  = Unknown_shift(j,k) - Unknown_rotate(j,k);
 		}
+#pragma omp barrier
 	}
+
 }
 
-void WENO::Update_2D(int axis, Matrix<double>& Solution, Matrix<double>& Aux, Matrix<double> xi, Matrix<int> rotate, Vector<double>& Xi,
-		int Order,Matrix<double> CL, Matrix<double> CR){
+void WENO::Update_2D(int axis, Matrix<double>& Solution, Matrix<double>& Aux, Matrix<double>& xi, Matrix<int>& rotate, Vector<double>& Xi,
+		int Order,Matrix<double>& CL, Matrix<double>& CR){
+	int j, k;
 	if (axis == 1){
-		for (int j = 0; j < Solution.dim_x; j++){
-	//#pragma omp parallel for private(k) schedule(static)
-			for (int k = 0; k < Solution.dim_y; k++){
+		for (k = 0; k < Solution.dim_y; k++){
+#pragma omp parallel for
+			for (j = 0; j < Solution.dim_y; j++){
 				MakeXi(xi(j,k), Xi, Order);
 				if (xi(j,k) > 0){
 					Aux(j+rotate(j,k), k) = Solution(j,k) - xi(j,k)*((Solution.slicec(k)(j-(Order-1)/2, Order) -
@@ -467,13 +476,13 @@ void WENO::Update_2D(int axis, Matrix<double>& Solution, Matrix<double>& Aux, Ma
 				}
 			}
 		}
-	//#pragma omp barrier
+#pragma omp barrier
 		Solution = Aux;
 	}
 	else{
-		for (int j = 0; j < Solution.dim_x; j++){
-//#pragma omp parallel for private(k) schedule(static)
-			for (int k = 0; k < Solution.dim_y; k++){
+		for (j = 0; j < Solution.dim_x; j++){
+#pragma omp parallel for
+			for (k = 0; k < Solution.dim_y; k++){
 				MakeXi(xi(j,k), Xi, Order);
 				if (xi(j,k) > 0){
 					Aux(j, k+rotate(j,k)) = Solution(j,k) - xi(j,k)*((Solution.slicer(j)(k-(Order-1)/2,Order) -
@@ -485,7 +494,7 @@ void WENO::Update_2D(int axis, Matrix<double>& Solution, Matrix<double>& Aux, Ma
 				}
 			}
 		}
-//#pragma omp barrier
+#pragma omp barrier
 		Solution = Aux;
 	}
 }

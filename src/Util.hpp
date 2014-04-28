@@ -19,6 +19,7 @@
 /* DEBUG SYSTEM */
 #include <cassert>
 #include <cstdlib>
+#include <sys/time.h>
 /* TYPES */
 #include "Grid.hpp"
 #include "Vector.hpp"
@@ -38,5 +39,6 @@ typedef double (*FuncVel_2D)(double, double ,double);
 typedef double (*FuncVel_3D)(double, double ,double, double);
 
 typedef const double Const;
+
 
 #endif /* UTIL_HPP_ */

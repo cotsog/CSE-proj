@@ -35,16 +35,17 @@ public:
 	void Assign(Matrix<double>&,Matrix<double>&, int Order);
 	void MakeXi(double xi, Vector<double>& Xi, int Order);
 
-	// RK
+	// RK 4th order, will produce 3rd order accuracy in locating position.
+	// the highest accuracy will be 3 at most.
 	double RK_2D(FuncVel_2D Vel_Unknown, int axis, double x, double y ,double time_start, double time_end);
 
 	// Splitting
 	void Split_2D(FuncVel_2D Vel_Unknown, int axis, Matrix<double>& Unknown_shift, Matrix<int>& Unknown_rotate,
 			Matrix<double>& Unknown_xi, Grid_2D grid, double delta_t, double time_start, double time_end);
 	// update
-	void Update_2D(int axis, Matrix<double>& Solution, Matrix<double>& Aux, Matrix<double> xi, Matrix<int> rotate, Vector<double>& Xi, 
-			int Order,Matrix<double> CL, Matrix<double> CR);
-	// Split scheme, can be updated. Alrady have first order, Strang, Yoshida
+	void Update_2D(int axis, Matrix<double>& Solution, Matrix<double>& Aux, Matrix<double>& xi, Matrix<int>& rotate, Vector<double>& Xi,
+			int Order,Matrix<double>& CL, Matrix<double>& CR);
+	// Split scheme, can be updated. Already have first order, Strang, Yoshida
 	Matrix<double> SplitScheme(int order, int dimenstion);
 	
 	// Splitting 

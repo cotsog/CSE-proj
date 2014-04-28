@@ -19,9 +19,13 @@ public:
 	int dim_x;
 	int dim_y;
 	valarray<valarray<T>> storage;
+	Matrix(){
+	}
 	Matrix(int arg_1, int arg_2){
 		storage.resize(arg_1);
-		for (int i = 0; i < arg_1; i++){
+		int i;
+#pragma omp parallel for private(i) schedule(static)
+		for (i = 0; i < arg_1; i++){
 			storage[i].resize(arg_2);
 		}
 		dim_x = arg_1;
@@ -29,6 +33,16 @@ public:
 	}
 	~Matrix(){
 
+	}
+	void Setup(int arg_1, int arg_2){
+		storage.resize(arg_1);
+		int i;
+#pragma omp parallel for private(i) schedule(static)
+		for (i = 0; i < arg_1; i++){
+			storage[i].resize(arg_2);
+		}
+		dim_x = arg_1;
+		dim_y = arg_2;
 	}
 	Matrix& operator+=(const Matrix& rhs){
 		(*this).storage += rhs.storage;

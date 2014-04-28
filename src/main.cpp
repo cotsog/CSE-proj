@@ -6,16 +6,23 @@
 // Description : WENO in C++, Ansi-style
 //============================================================================
 
-#include <iostream>
+//#include <iostream>
 #include "Util.hpp"
 #include "WENO.hpp"
 #include "Interpolation.hpp"
 using namespace std;
 
+long timer()
+{
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return (tv.tv_sec * 1000000) + tv.tv_usec;
+}
+
 int test1D_Const_Delta_t_Const_Vel() {
 	std::cout<< std::setw(8) << "N" << std::setw(10) << "steps" << std::setw(15)
-		<< "delta_t" << std::setw(20) << "ORDER3" << std::setw(12) << "ORDER5" <<
-		std::setw(15) << "ORDER7" << std::setw(15)<< "ORDER9" << '\n';
+		<< "delta_t" << std::setw(16) << "ORDER3" << std::setw(16) << "ORDER5" <<
+		std::setw(16) << "ORDER7" << std::setw(16)<< "ORDER9" << '\n';
 		int N = 5;
 		int time_step = 3;
 		double delta_t = 1./3;
@@ -30,8 +37,9 @@ int test1D_Const_Delta_t_Const_Vel() {
 			}
 			// periodic boundary
 			WENO SOLVER;
+			std::cout.unsetf(ios::fixed | ios::scientific);
 			std::cout<< std::setw(8) << N << std::setw(10) << time_step <<
-					std::setw(15) << delta_t << std::setw(20);
+					std::setw(15) << delta_t << std::scientific;
 			SOLVER.CWENO1D(init_state,grid,3,time_step,delta_t,1.0);
 			SOLVER.CWENO1D(init_state,grid,5,time_step,delta_t,1.0);
 			SOLVER.CWENO1D(init_state,grid,7,time_step,delta_t,1.0);
@@ -44,8 +52,8 @@ int test1D_Const_Delta_t_Const_Vel() {
 
 int test2D_Const_Delta_t_Const_Vel() {
 	std::cout<< std::setw(8) << "N" << std::setw(10) << "steps" << std::setw(15)
-		<< "delta_t" << std::setw(20) << "ORDER3" << std::setw(12) << "ORDER5" <<
-		std::setw(15) << "ORDER7" << std::setw(15)<< "ORDER9" << '\n';
+		<< "delta_t" << std::setw(16) << "ORDER3" << std::setw(16) << "ORDER5" <<
+		std::setw(16) << "ORDER7" << std::setw(16)<< "ORDER9" << '\n';
 		int N = 5;
 		int time_step = 3;
 		double delta_t = 1./3;
@@ -63,8 +71,9 @@ int test2D_Const_Delta_t_Const_Vel() {
 			}
 			// periodic boundary
 			WENO SOLVER;
+			std::cout.unsetf(ios::fixed | ios::scientific);
 			std::cout<< std::setw(8) << N << std::setw(10) << time_step <<
-					std::setw(15) << delta_t << std::setw(20);
+					std::setw(15) << delta_t << std::scientific;
 			SOLVER.CWENO2D(init_state,grid,3,time_step,delta_t,1.0,1.0);
 			SOLVER.CWENO2D(init_state,grid,5,time_step,delta_t,1.0,1.0);
 			SOLVER.CWENO2D(init_state,grid,7,time_step,delta_t,1.0,1.0);
@@ -77,8 +86,8 @@ int test2D_Const_Delta_t_Const_Vel() {
 
 int test3D_Const_Delta_t_Const_Vel() {
 	std::cout<< std::setw(8) << "N" << std::setw(10) << "steps" << std::setw(15)
-		<< "delta_t" << std::setw(20) << "ORDER3" << std::setw(12) << "ORDER5" <<
-		std::setw(15) << "ORDER7" << std::setw(15)<< "ORDER9" << '\n';
+		<< "delta_t" << std::setw(16) << "ORDER3" << std::setw(16) << "ORDER5" <<
+		std::setw(16) << "ORDER7" << std::setw(16)<< "ORDER9" << '\n';
 		int N = 5;
 		int time_step = 3;
 		double delta_t = 1./3;
@@ -98,8 +107,9 @@ int test3D_Const_Delta_t_Const_Vel() {
 			}
 			// periodic boundary
 			WENO SOLVER;
+			std::cout.unsetf(ios::fixed | ios::scientific);
 			std::cout<< std::setw(8) << N << std::setw(10) << time_step <<
-					std::setw(15) << delta_t << std::setw(20);
+					std::setw(15) << delta_t << std::scientific;
 			SOLVER.CWENO3D(init_state,grid,3,time_step,delta_t,1.0,1.0,1.0);
 			SOLVER.CWENO3D(init_state,grid,5,time_step,delta_t,1.0,1.0,1.0);
 			SOLVER.CWENO3D(init_state,grid,7,time_step,delta_t,1.0,1.0,1.0);
@@ -119,16 +129,16 @@ double Vel_2D_Y(double x, double y, double t){
 }
 int test2D_Const_CFL_Variable_Vel() {
 	std::cout<< std::setw(8) << "N" << std::setw(10) << "steps" << std::setw(15)
-		<< "delta_t" << std::setw(20) << "ORDER3" << std::setw(12) << "ORDER5" <<
-		std::setw(15) << "ORDER7" << std::setw(15)<< "ORDER9" << '\n';
-		int N = 20;
+		<< "delta_t"<< std::setw(16) << "ORDER3" << std::setw(16) << "ORDER5" <<
+		std::setw(16) << "ORDER7" << std::setw(16)<< "ORDER9" << std::setw(16) << "Elapse" <<  '\n';
+		int N = 50;
 		int time_step = 30;
 		double delta_t =2*PI/30;
 		FuncVel_2D Vel_X, Vel_Y;
 		Vel_X = Vel_2D_X;
 		Vel_Y = Vel_2D_Y;
 		for (int k = 0;k < 5; k++){
-			N = floor(N*pow(1.2,k)); 
+			N = floor(N*1.25992104989); // cubic root of 2, should see halving effect
 			//time_step = 2 * N;
 			//delta_t = 2*PI/time_step;
 			Grid_2D grid(-1.,1., N,-1.,1.,N);
@@ -139,15 +149,22 @@ int test2D_Const_CFL_Variable_Vel() {
 							init_state(i,j) = 1.0 + cos(sqrt(pow(grid.start_x + i *grid.delta_x,2) + pow(grid.start_y + j *grid.delta_y,2))*PI/2.0/0.4);
 				}
 			}
-			// periodic boundary
+
 			WENO SOLVER;
-			std::cout<< std::setw(8) << N << std::setw(10) << time_step <<
-					std::setw(15) << delta_t << std::setw(20);
+			std::cout.unsetf(ios::fixed | ios::scientific);
+			std::cout << std::setw(8) << N << std::setw(10) <<time_step <<
+					std::setw(15) << delta_t << std::scientific;
+			long start = timer();
 			SOLVER.VWENO2D(init_state,grid,3,time_step,delta_t,Vel_X,Vel_Y);
 			SOLVER.VWENO2D(init_state,grid,5,time_step,delta_t,Vel_X,Vel_Y);
 			SOLVER.VWENO2D(init_state,grid,7,time_step,delta_t,Vel_X,Vel_Y);
 			SOLVER.VWENO2D(init_state,grid,9,time_step,delta_t,Vel_X,Vel_Y);
+			long elapse = timer() - start;
+			std::cout.unsetf(ios::fixed | ios::scientific);
+			std::cout << setw(16) << elapse/1000000.0 << std::endl;
 			std::cout << '\n';
+
+
 		}
 
 		return 0;
