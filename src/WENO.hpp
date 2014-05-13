@@ -38,6 +38,7 @@ public:
 	// RK 4th order, will produce 3rd order accuracy in locating position.
 	// the highest accuracy will be 3 at most.
 	double RK_2D(FuncVel_2D Vel_Unknown, int axis, double x, double y ,double time_start, double time_end);
+	double RK_3D(FuncVel_3D Vel_Unknown, int axis, double x, double y, double z, double time_start, double time_end);
 
 	// Splitting
 	void Split_2D(FuncVel_2D Vel_Unknown, int axis, Matrix<double>& Unknown_shift, Matrix<int>& Unknown_rotate,
@@ -53,7 +54,14 @@ public:
 			Tensor<double>& _xi, Grid_3D grid, double delta_t, double time_start, double time_end);
 	// update	
 	void Update_3D(int _axis, Tensor<double>& Solution, Tensor<double>& Aux, Tensor<double> _xi, Tensor<int> _rotate, Vector<double>& Xi,
-			int Order, Tensor<double> CL, Tensor<double> CR);
+			int Order, Matrix<double> CL, Matrix<double> CR);
+	long timer()
+	{
+	    struct timeval tv;
+	    gettimeofday(&tv, NULL);
+	    return (tv.tv_sec * 1000000) + tv.tv_usec;
+	};
+
 };
 
 #endif /* WENO_H_ */

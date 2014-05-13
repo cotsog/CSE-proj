@@ -124,24 +124,24 @@ public:
 		(*this).storage = rhs.storage;
 		return *this;
 	}
-	Vector<T> slicerc(const int location1,const int location2){
-		Vector<T> sub((*this).dim_z);
-		for (int i= 0 ; i< (*this).dim_z; i++){
-			sub(i) = (*this)(location1,location2,i);
+	Vector<T> slicerc(const int location1,const int location2, const int start, const int length){
+		Vector<T> sub(length);
+		for (int i= 0 ; i< length; i++){
+			sub(i) = (*this)(location1,location2,start+i);
 		}
 		return sub;
 	}
-	Vector<T> slicerh(const int location1,const int location2){
-		Vector<T> sub((*this).dim_y);
-		for (int i= 0 ; i< (*this).dim_y; i++){
-			sub(i) = (*this)(location1,i,location2);
+	Vector<T> slicerh(const int location1,const int location2 ,const int start, const int length){
+		Vector<T> sub(length);
+		for (int i= 0 ; i< length; i++){
+			sub(i) = (*this)(location1,start+i,location2);
 		}
 		return sub;
 	}
-	Vector<T> slicech(const int location1,const int location2){
-		Vector<T> sub((*this).dim_x);
-		for (int i= 0 ; i< (*this).dim_x; i++){
-			sub(i) = (*this)(i,location1,location2);
+	Vector<T> slicech(const int location1,const int location2, const int start, const int length){
+		Vector<T> sub(length);
+		for (int i= 0 ; i< length; i++){
+			sub(i) = (*this)(i+start,location1,location2);
 		}
 		return sub;
 	}
@@ -169,6 +169,19 @@ public:
 		}
 		return ret;
 	}
+
+	double L1norm(){
+		double ret = 0;
+		for (int i=0 ; i < (*this).dim_x; i++){
+			for (int j=0 ; j < (*this).dim_y; j++){
+				for (int k = 0; k < (*this).dim_z; k++){
+					ret += fabs((*this)(i,j,k));
+				}
+			}
+		}
+		return ret;
+	}
+
 };
 
 template <class T> T& Tensor<T>::operator ()(const int location_1, const int location_2, const int location_3){

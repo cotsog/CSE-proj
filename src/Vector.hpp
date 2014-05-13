@@ -25,24 +25,31 @@ public:
 	}
 
 	Vector& operator*=(double scalar){
-		 (*this).storage *= scalar;
+		for (int i = 0 ; i < (*this).dim ;i++){	
+			(*this).storage[i] *= scalar;
+		}
 		 return *this;
 	}
 	Vector& operator/=(double scalar){
-		 (*this).storage /= scalar;
+		for (int i = 0; i < (*this).dim; i++){
+		 (*this).storage[i] /= scalar;
+	 }
 		 return *this;
 	}
 	Vector operator*(double scalar){
 		Vector lhs((*this).dim);
-		lhs.storage = (*this).storage;
-		lhs.storage *= scalar;
+		for (int i = 0 ; i < (*this).dim ; i++){
+			lhs.storage[i] = (*this).storage[i]*scalar;
+	}
 		return lhs;
 	}
 
 	Vector operator/(double scalar){
 		Vector lhs((*this).dim);
-		lhs.storage = (*this).storage;
-		lhs.storage /= scalar;
+		for (int i = 0; i < (*this).dim; i++){
+			lhs.storage[i] = (*this).storage/scalar;
+		}
+
 		return lhs;
 	}
 
@@ -55,38 +62,52 @@ public:
 	}
 
 	Vector& operator+=(const Vector& rhs){
-		(*this).storage += rhs.storage;
+		for (int i = 0 ; i < (*this).dim; i++){
+			(*this).storage[i] += rhs.storage[i];
+		}
 		return *this;
 	}
 
 	Vector& operator-=(const Vector& rhs){
-		(*this).storage -= rhs.storage;
+		for (int i=0; i<(*this).dim; i++){
+			(*this).storage[i] -= rhs.storage[i];
+		}
 		return *this;
 	}
 	Vector& operator+=(const double scalar){
-		(*this).storage += scalar;
+		for (int i = 0; i < (*this).dim; i++){
+			(*this).storage[i] += scalar;
+		}
 		return *this;
 	}
 	Vector& operator-=(const double scalar){
-		(*this).storage -= scalar;
+		for (int i =0; i< (*this).dim; i++){
+			(*this).storage[i] -= scalar;
+	}
 		return *this;
 	}
 
 	Vector operator+(const Vector& rhs){
 		Vector lhs(rhs.dim);
-		lhs.storage = (*this).storage + rhs.storage;
+		for (int i = 0; i <(*this).dim; i++){
+			lhs.storage[i] = (*this).storage[i] + rhs.storage[i];
+		}
 		return lhs;
 	}
 
 	Vector operator-(const Vector& rhs){
 		Vector lhs(rhs.dim);
-		lhs.storage = (*this).storage - rhs.storage;
+		for (int i = 0; i < (*this).dim; i++){
+			lhs.storage[i] = (*this).storage[i] - rhs.storage[i];
+		}
 		return lhs;
 	}
 
 	Vector& operator= (Vector rhs){
 		(*this).dim = rhs.dim;
-		(*this).storage = rhs.storage;
+		for (int i = 0; i < (*this).dim; i++){
+			(*this).storage[i] = rhs.storage[i];
+		}
 		return *this;
 	}
 	T& operator[](const int location);

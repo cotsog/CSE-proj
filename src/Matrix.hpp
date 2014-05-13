@@ -24,7 +24,7 @@ public:
 	Matrix(int arg_1, int arg_2){
 		storage.resize(arg_1);
 		int i;
-#pragma omp parallel for private(i) schedule(static)
+//#pragma omp parallel for private(i) schedule(static)
 		for (i = 0; i < arg_1; i++){
 			storage[i].resize(arg_2);
 		}
@@ -37,7 +37,7 @@ public:
 	void Setup(int arg_1, int arg_2){
 		storage.resize(arg_1);
 		int i;
-#pragma omp parallel for private(i) schedule(static)
+//#pragma omp parallel for private(i) schedule(static)
 		for (i = 0; i < arg_1; i++){
 			storage[i].resize(arg_2);
 		}
@@ -138,6 +138,26 @@ public:
 		Vector<T> sub((*this).dim_x);
 		for (int i= 0 ; i< (*this).dim_x; i++){
 			sub(i) = (*this)(i,location);
+		}
+		return sub;
+	}
+
+	Vector<T> slicer(const int location, const int start, const int length){
+		Vector<T> sub(length);
+		int i;
+//#pragma omp parallel for
+		for (i = 0 ; i < length ; i++){
+			sub(i) = (*this)(location, start + i);
+		}
+		return sub;
+	}
+
+	Vector<T> slicec(const int location, const int start, const int length){
+		Vector<T> sub(length);
+		int i;
+//#pragma omp parallel for
+		for (i=0; i < length; i++){
+			sub(i) = (*this)(start + i, location);
 		}
 		return sub;
 	}
